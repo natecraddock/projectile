@@ -16,7 +16,7 @@ import math
 # Set keyframes
 def set_keyframes(o):
     o.keyframe_insert('location')
-    o.keyframe_insert('rotation')
+    o.keyframe_insert('rotation_euler')
     
 def set_quality(self, context):
     frame_rate = context.scene.render.fps
@@ -43,10 +43,50 @@ def update_individual_v(self, context):
         props.v.y = (props.total_v * props.v.y) / old_v
         props.v.z = (props.total_v * props.v.z) / old_v
 
+class ImpulseAddObject(bpy.types.Operator):
+    bl_idname = "rigidbody.impulse_add_object"
+    bl_label = "Add Object"
+    bl_description = "Add object to Impulse"
+    
+    @classmethod
+    def poll(cls, context):
+        if context.active_object:
+            return context.active_object.type == 'MESH'
+        
+    def execute(self, context):
+        if 'impulse_objects' not in bpy.data.groups:
+            bpy.ops.group.create(name='impulse_objects')
+        
+        bpy.ops.object.group_link(group='impulse_objects')
+        
+        # Make sure it is a rigid body
+        if context.active_object.rigid_body is None:
+            bpy.ops.rigidbody.objects_add()
+        
+        return {'FINISHED'}
+        
+
+class ImpulseRemoveObject(bpy.types.Operator):
+    bl_idname = "rigidbody.impulse_remove_object"
+    bl_label = "Remove Object"
+    bl_description = "Remove object from Impulse"
+    
+    @classmethod
+    def poll(cls, context):
+        if context.active_object:
+            return context.active_object in list(bpy.data.groups['impulse_objects'].objects)
+        
+    def execute(self, context):
+        bpy.ops.group.objects_remove(group="impulse_objects")
+        
+        #context.active_object.impulse_props = None
+        
+        return {'FINISHED'}
+
 
 class ImpulseSetInitial(bpy.types.Operator):
     bl_idname = "rigidbody.impulse_set_initial"
-    bl_label = "Set Initial Position"  
+    bl_label = "Set Initial"  
     bl_description = "Set the object's initial position and rotation to the current location and rotation"
     
     @classmethod
@@ -55,8 +95,8 @@ class ImpulseSetInitial(bpy.types.Operator):
             return context.active_object.type == 'MESH'
     
     def execute(self, context):
-        context.scene.impulse_props.s = context.active_object.location
-        context.scene.impulse_props.r = context.active_object.rotation_euler
+        context.active_object.impulse_props.s = context.active_object.location
+        context.active_object.impulse_props.r = context.active_object.rotation_euler
         return {'FINISHED'}
 
     
@@ -70,10 +110,8 @@ class ImpulseInitializeVelocity(bpy.types.Operator):
             return context.active_object.type == 'MESH'
 
     def execute(self, context):
-        props = context.scene.impulse_props
-        
         object = bpy.context.active_object
-        
+        props = object.impulse_props
         frame_rate = bpy.context.scene.render.fps
 
         # Make sure it is a rigid body
@@ -99,16 +137,14 @@ class ImpulseInitializeVelocity(bpy.types.Operator):
         # Set start keyframe
         object.location = props.s
         object.rotation_euler = props.r
-        object.keyframe_insert(data_path='location')
-        object.keyframe_insert(data_path='rotation_euler')
+        set_keyframes(object)
         
         bpy.context.scene.frame_current += 1
         
         # Set end keyframe
         object.location = new_loc
         object.rotation_euler = new_rot
-        object.keyframe_insert(data_path='location')
-        object.keyframe_insert(data_path='rotation_euler')
+        set_keyframes(object)
         
         # Set animated checkbox
         object.rigid_body.kinematic = True
@@ -121,6 +157,12 @@ class ImpulseInitializeVelocity(bpy.types.Operator):
         object.keyframe_insert('rigid_body.kinematic')
         
         bpy.context.scene.frame_current = 0
+        
+        settings = context.scene.impulse_settings
+        
+        if settings.auto_play:
+            bpy.ops.screen.animation_play()
+            
         return {'FINISHED'}
     
     
@@ -134,37 +176,58 @@ class ImpulsePanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+
+        row = layout.row(align=True)        
         
-        props = context.scene.impulse_props
+        # If the group exists and has objects
+        if context.active_object and context.active_object in list(bpy.data.groups['impulse_objects'].objects):
+            props = context.object.impulse_props
+            o = context.active_object.impulse_props
+            
+            row.operator('rigidbody.impulse_remove_object')
+            row = layout.row()
+            column = row.column()
+            column.prop(o, 's')
+            column.prop(o, 'r')
+            column.operator("rigidbody.impulse_set_initial")
+            
+            column = row.column()
+            column.prop(o, 'v')
+            #column.prop(props, 'total_v')
+            #total_v = math.sqrt(pow(props.v.x, 2) + pow(props.v.y, 2) + pow(props.v.z, 2))
+            #label = "Total Velocity: " + "{:10.4f}".format(total_v)
+            #column.label(text=label)
+            column.prop(o, 'av')
+            
+            row = layout.row()
+            row.separator()
+            
+            row = layout.row()
+            row.prop(o, 'start_frame')
+            
+            
+            layout.row().operator("rigidbody.impulse_initialize_velocity")
+        else:
+            row.operator('rigidbody.impulse_add_object')
         
-        row = layout.row()
-        column = row.column()
-        column.prop(props, 's')
-        column.prop(props, 'r')
-        column.operator("rigidbody.impulse_set_initial")
         
-        column = row.column()
-        column.prop(props, 'v')
-        #column.prop(props, 'total_v')
-        total_v = math.sqrt(pow(props.v.x, 2) + pow(props.v.y, 2) + pow(props.v.z, 2))
-        label = "Total Velocity: " + "{:10.4f}".format(total_v)
-        column.label(text=label)
-        column.prop(props, 'av')
         
-        row = layout.row()
-        row.separator()
-        row = layout.row()
-        row.label(text="Quality:")
-        row.prop(props, 'quality', expand=True)
-        
-        row = layout.row()
-        row.prop(props, 'start_frame')
-        
-        layout.row().operator("rigidbody.impulse_initialize_velocity")
+        # Overall Settings
+        if list(bpy.data.groups['impulse_objects'].objects):
+            settings = context.scene.impulse_settings
+            
+            layout.separator()
+            box = layout.box()
+            row = box.row()
+            row.label(text="Quality:")
+            row.prop(settings, 'quality', expand=True)
+            row = box.row()
+            #row.alignment = 'CENTER'
+            row.prop(settings, 'auto_play')
 
 
 # Addon Properties
-class ImpulseProperties(bpy.types.PropertyGroup):
+class ImpulseObjectProperties(bpy.types.PropertyGroup):
     start_frame = bpy.props.IntProperty(
         name="Start Frame",
         description="Frame to start velocity initialization on",
@@ -173,51 +236,52 @@ class ImpulseProperties(bpy.types.PropertyGroup):
         max = bpy.context.scene.frame_end)
         
     s = bpy.props.FloatVectorProperty(
-        name="Initial Position",
+        name="Position",
         description="Initial position for the object",
         subtype='TRANSLATION')
     
     r = bpy.props.FloatVectorProperty(
-        name="Initial Rotation",
+        name="Rotation",
         description="Initial rotation for the object",
         subtype='EULER')
         
     v = bpy.props.FloatVectorProperty(
         name="Velocity",
-        description="Axis-dependent velocity",
+        description="Set the velocity of the object",
         subtype='VELOCITY',
         update=update_total_v)
         
     av = bpy.props.FloatVectorProperty(
         name="Angular Velocity",
-        description="Axis-dependent angular velocity",
-        subtype='EULER')
-        
-    total_v = bpy.props.FloatProperty(
-        name="Total Velocity",
-        description="Total velocity",
-        unit='VELOCITY')
-        
+        description="Set the angular velocity of the object",
+        subtype='VELOCITY')
+
+class ImpulseSettings(bpy.types.PropertyGroup):
     quality = bpy.props.EnumProperty(
         name="Quality",
         items=[("low", "Low", "Use low quality settings"),
                ("medium", "Medium", "Use medium quality settings"),
                ("high", "High", "Use high quality settings")],
-        default='high',
+        default='medium',
         update=set_quality)
-
-
+        
+    auto_play = bpy.props.BoolProperty(
+        name="Auto Play",
+        description="Automatically start the animation after running",
+        default=False)
 
 def register():
     bpy.utils.register_module(__name__)
     
-    bpy.types.Scene.impulse_props = bpy.props.PointerProperty(type=ImpulseProperties)
+    bpy.types.Object.impulse_props = bpy.props.PointerProperty(type=ImpulseObjectProperties)
+    bpy.types.Scene.impulse_settings = bpy.props.PointerProperty(type=ImpulseSettings)
 
 
 def unregister():
     bpy.utils.unregister_module(__name__)
     
-    del bpy.types.Scene.init_vel_props
+    del bpy.types.Object.impulse_props
+    del bpy.types.Scene.impulse_settings
 
 
 if __name__ == "__main__":
