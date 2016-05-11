@@ -98,7 +98,7 @@ class ImpulseSetLocation(bpy.types.Operator):
         context.active_object.impulse_props.s = context.active_object.location
         return {'FINISHED'}
     
-class ImpulseSetLocation(bpy.types.Operator):
+class ImpulseSetRotation(bpy.types.Operator):
     bl_idname = "rigidbody.impulse_set_rotation"
     bl_label = "Use Current Rotation"  
     bl_description = "Use the current rotation"
