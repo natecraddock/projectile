@@ -20,7 +20,7 @@ def set_keyframes(o):
     
 def set_quality(self, context):
     frame_rate = context.scene.render.fps
-    q = context.scene.impulse_props.quality
+    q = context.scene.impulse_settings.quality
     if q == 'low':
         bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 2
     elif q == 'medium':
@@ -84,10 +84,10 @@ class ImpulseRemoveObject(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class ImpulseSetInitial(bpy.types.Operator):
-    bl_idname = "rigidbody.impulse_set_initial"
-    bl_label = "Set Initial"  
-    bl_description = "Set the object's initial position and rotation to the current location and rotation"
+class ImpulseSetLocation(bpy.types.Operator):
+    bl_idname = "rigidbody.impulse_set_location"
+    bl_label = "Use Current Location"  
+    bl_description = "Use the current location"
     
     @classmethod
     def poll(cls, context):
@@ -96,6 +96,19 @@ class ImpulseSetInitial(bpy.types.Operator):
     
     def execute(self, context):
         context.active_object.impulse_props.s = context.active_object.location
+        return {'FINISHED'}
+    
+class ImpulseSetLocation(bpy.types.Operator):
+    bl_idname = "rigidbody.impulse_set_rotation"
+    bl_label = "Use Current Rotation"  
+    bl_description = "Use the current rotation"
+    
+    @classmethod
+    def poll(cls, context):
+        if context.active_object:
+            return context.active_object.type == 'MESH'
+    
+    def execute(self, context):
         context.active_object.impulse_props.r = context.active_object.rotation_euler
         return {'FINISHED'}
 
@@ -120,6 +133,9 @@ class ImpulseInitializeVelocity(bpy.types.Operator):
         
         # Animate it!
         object.animation_data_clear()
+        
+        if bpy.context.scene.frame_start > props.start_frame:
+            props.start_frame = bpy.context.scene.frame_start
         
         bpy.context.scene.frame_current = props.start_frame
         
@@ -180,40 +196,39 @@ class ImpulsePanel(bpy.types.Panel):
         row = layout.row(align=True)        
         
         # If the group exists and has objects
-        if context.active_object and context.active_object in list(bpy.data.groups['impulse_objects'].objects):
-            props = context.object.impulse_props
-            o = context.active_object.impulse_props
+        if 'impulse_objects' in bpy.data.groups:
+            if context.active_object and context.active_object in list(bpy.data.groups['impulse_objects'].objects):
+                props = context.object.impulse_props
+                o = context.active_object.impulse_props
+                
+                row.operator('rigidbody.impulse_remove_object')
+                row = layout.row()
+                column = row.column(align=True)
+                column.prop(o, 's')
+                column.operator("rigidbody.impulse_set_location")
+                column.prop(o, 'r')
+                column.operator("rigidbody.impulse_set_rotation")
+                
+                column = row.column()
+                column.prop(o, 'v')
+                #column.prop(props, 'total_v')
+                #total_v = math.sqrt(pow(props.v.x, 2) + pow(props.v.y, 2) + pow(props.v.z, 2))
+                #label = "Total Velocity: " + "{:10.4f}".format(total_v)
+                #column.label(text=label)
+                column.prop(o, 'av')
+                
+                row = layout.row()
+                row.separator()
+                
+                row = layout.row()
+                row.prop(o, 'start_frame')
+                
+                
+                layout.row().operator("rigidbody.impulse_initialize_velocity")
+            else:
+                row.operator('rigidbody.impulse_add_object')
             
-            row.operator('rigidbody.impulse_remove_object')
-            row = layout.row()
-            column = row.column()
-            column.prop(o, 's')
-            column.prop(o, 'r')
-            column.operator("rigidbody.impulse_set_initial")
-            
-            column = row.column()
-            column.prop(o, 'v')
-            #column.prop(props, 'total_v')
-            #total_v = math.sqrt(pow(props.v.x, 2) + pow(props.v.y, 2) + pow(props.v.z, 2))
-            #label = "Total Velocity: " + "{:10.4f}".format(total_v)
-            #column.label(text=label)
-            column.prop(o, 'av')
-            
-            row = layout.row()
-            row.separator()
-            
-            row = layout.row()
-            row.prop(o, 'start_frame')
-            
-            
-            layout.row().operator("rigidbody.impulse_initialize_velocity")
-        else:
-            row.operator('rigidbody.impulse_add_object')
-        
-        
-        
-        # Overall Settings
-        if list(bpy.data.groups['impulse_objects'].objects):
+            # Addon settings
             settings = context.scene.impulse_settings
             
             layout.separator()
@@ -224,6 +239,9 @@ class ImpulsePanel(bpy.types.Panel):
             row = box.row()
             #row.alignment = 'CENTER'
             row.prop(settings, 'auto_play')
+            
+        else:
+            row.operator('rigidbody.impulse_add_object')
 
 
 # Addon Properties
@@ -231,9 +249,7 @@ class ImpulseObjectProperties(bpy.types.PropertyGroup):
     start_frame = bpy.props.IntProperty(
         name="Start Frame",
         description="Frame to start velocity initialization on",
-        default=1,
-        min=bpy.context.scene.frame_start,
-        max = bpy.context.scene.frame_end)
+        default=1)
         
     s = bpy.props.FloatVectorProperty(
         name="Position",
