@@ -79,14 +79,23 @@ class ImpulseRemoveObject(bpy.types.Operator):
     def execute(self, context):
         bpy.ops.group.objects_remove(group="impulse_objects")
         
-        #context.active_object.impulse_props = None
+        # Remove animation data
+        context.active_object.animation_data_clear()
+        
+        # HACKY! :D
+        # Move frame forward, then back to update
+        bpy.context.scene.frame_current += 1
+        bpy.context.scene.frame_current -= 1
+        
+        # Make sure it animates...
+        object.rigid_body.kinematic = False
         
         return {'FINISHED'}
 
 
 class ImpulseSetLocation(bpy.types.Operator):
     bl_idname = "rigidbody.impulse_set_location"
-    bl_label = "Use Current Location"  
+    bl_label = "Use Current"  
     bl_description = "Use the current location"
     
     @classmethod
@@ -100,7 +109,7 @@ class ImpulseSetLocation(bpy.types.Operator):
     
 class ImpulseSetRotation(bpy.types.Operator):
     bl_idname = "rigidbody.impulse_set_rotation"
-    bl_label = "Use Current Rotation"  
+    bl_label = "Use Current"  
     bl_description = "Use the current rotation"
     
     @classmethod
@@ -176,7 +185,7 @@ class ImpulseInitializeVelocity(bpy.types.Operator):
         
         settings = context.scene.impulse_settings
         
-        if settings.auto_play:
+        if settings.auto_play and not bpy.context.screen.is_animation_playing:
             bpy.ops.screen.animation_play()
             
         return {'FINISHED'}
@@ -201,13 +210,13 @@ class ImpulsePanel(bpy.types.Panel):
                 props = context.object.impulse_props
                 o = context.active_object.impulse_props
                 
-                row.operator('rigidbody.impulse_remove_object')
+                row.operator('rigidbody.impulse_remove_object', icon='X')
                 row = layout.row()
                 column = row.column(align=True)
                 column.prop(o, 's')
-                column.operator("rigidbody.impulse_set_location")
+                column.operator("rigidbody.impulse_set_location", icon='MAN_TRANS')
                 column.prop(o, 'r')
-                column.operator("rigidbody.impulse_set_rotation")
+                column.operator("rigidbody.impulse_set_rotation", icon='MAN_ROT')
                 
                 column = row.column()
                 column.prop(o, 'v')
@@ -224,9 +233,9 @@ class ImpulsePanel(bpy.types.Panel):
                 row.prop(o, 'start_frame')
                 
                 
-                layout.row().operator("rigidbody.impulse_initialize_velocity")
+                layout.row().operator("rigidbody.impulse_initialize_velocity", icon='MOD_PHYSICS')
             else:
-                row.operator('rigidbody.impulse_add_object')
+                row.operator('rigidbody.impulse_add_object', icon='ZOOMIN')
             
             # Addon settings
             settings = context.scene.impulse_settings
@@ -241,7 +250,7 @@ class ImpulsePanel(bpy.types.Panel):
             row.prop(settings, 'auto_play')
             
         else:
-            row.operator('rigidbody.impulse_add_object')
+            row.operator('rigidbody.impulse_add_object', icon='ZOOMIN')
 
 
 # Addon Properties
@@ -252,7 +261,7 @@ class ImpulseObjectProperties(bpy.types.PropertyGroup):
         default=1)
         
     s = bpy.props.FloatVectorProperty(
-        name="Position",
+        name="Location",
         description="Initial position for the object",
         subtype='TRANSLATION')
     
