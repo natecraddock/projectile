@@ -88,7 +88,7 @@ class ImpulseRemoveObject(bpy.types.Operator):
         bpy.context.scene.frame_current -= 1
         
         # Make sure it animates...
-        object.rigid_body.kinematic = False
+        context.active_object.rigid_body.kinematic = False
         
         return {'FINISHED'}
 
