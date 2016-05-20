@@ -12,6 +12,9 @@ bl_info = {
 import bpy
 from mathutils import Vector
 import math
+import bpy_extras
+import bgl
+import blf
 
 # Set keyframes
 def set_keyframes(o):
@@ -42,6 +45,135 @@ def update_individual_v(self, context):
         props.v.x = (props.total_v * props.v.x) / old_v
         props.v.y = (props.total_v * props.v.y) / old_v
         props.v.z = (props.total_v * props.v.z) / old_v
+        
+        
+def draw_line(begin, end):
+    bgl.glEnable(bgl.GL_BLEND)
+    bgl.glColor4f(0.9, 0.0, 0.0, 1.0)
+    bgl.glLineWidth(5)
+    
+    bgl.glBegin(bgl.GL_LINE_STRIP)
+    
+    origin = bpy_extras.view3d_utils.location_3d_to_region_2d(bpy.context.region, bpy.context.space_data.region_3d, begin)
+    end_point = bpy_extras.view3d_utils.location_3d_to_region_2d(bpy.context.region, bpy.context.space_data.region_3d, begin + end)
+
+    bgl.glVertex2f(origin.x, origin.y)
+    bgl.glVertex2f(end_point.x, end_point.y)
+    bgl.glEnd()
+    
+    # Get direction
+    
+    # Draw arrow
+    #bgl.glBegin(bgl.GL_TRIANGLES);
+    #bgl.glVertex2f(end_point.x, end_point.y);
+    #bgl.glVertex2f(end_point.x - 10, end_point.y - 10);
+    #bgl.glVertex2f(end_point.x - 10, end_point.y + 10);
+    #bgl.glEnd()
+
+
+def draw_callback_px(self, context):
+    font_id = 1
+    
+    origin = bpy_extras.view3d_utils.location_3d_to_region_2d(bpy.context.region, bpy.context.space_data.region_3d, self.c.location)
+    
+    # Get the distance moved with the axis
+    if self.message == "X":
+        self.new.x = (self.dx - origin.x) * 0.1
+
+    if self.message == "Y":
+        self.new.y = (self.dx - origin.x) * 0.1
+
+    if self.message == "Z":
+        self.new.z = (self.dx - origin.x) * 0.1
+
+    bgl.glColor3f(1, 1, 1)
+    blf.position(font_id, 15, 30, 0)
+    blf.size(font_id, 20, 72)
+    blf.draw(font_id, "Setting {}".format(self.message))
+
+    draw_line(self.c.location, self.new)
+
+class ImpulseSetVelocity(bpy.types.Operator):
+    bl_idname = "rigidbody.impulse_set_velocity"
+    bl_label = "Set Velocity"
+    bl_description = "Modal Operator to set the velocity"
+
+    def modal(self, context, event):
+        context.area.tag_redraw()
+
+        if event.type == 'MOUSEMOVE':
+            self.dx = event.mouse_region_x
+            self.dy = event.mouse_region_y
+            
+        elif (event.type == 'X') and (event.value == 'PRESS'):
+            if not self.update: self.update_initial(event)
+            self.message = "X"
+            
+        elif (event.type == 'X') and (event.value == 'RELEASE'):
+            self.message = ""
+            self.update = False
+        
+        elif (event.type == 'Y') and (event.value == 'PRESS'):
+            if not self.update: self.update_initial(event)
+            self.message = "Y"
+            
+        elif (event.type == 'Y') and (event.value == 'RELEASE'):
+            self.message = ""
+            self.update = False
+            
+        elif (event.type == 'Z') and (event.value == 'PRESS'):
+            if not self.update: self.update_initial(event)
+            self.message = "Z"
+            
+        elif (event.type == 'Z') and (event.value == 'RELEASE'):
+            self.message = ""
+            self.update = False
+
+        elif event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
+            return {'PASS_THROUGH'}
+
+        elif event.type == 'LEFTMOUSE':
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+            
+            self.c.impulse_props.v.x = self.new.x
+            self.c.impulse_props.v.y = self.new.y
+            self.c.impulse_props.v.z = self.new.z
+            
+            return {'FINISHED'}
+
+        elif event.type in {'RIGHTMOUSE', 'ESC'}:
+            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+            return {'CANCELLED'}
+
+        return {'RUNNING_MODAL'}
+    
+    def update_initial(self, event):        
+        self.x = event.mouse_region_x
+        self.y = event.mouse_region_y
+        self.update = True
+    
+    def invoke(self, context, event):
+        if context.area.type == 'VIEW_3D':
+            # the arguments we pass the the callback
+            args = (self, context)
+            # Add the region OpenGL drawing callback
+            # draw in view space with 'POST_VIEW' and 'PRE_VIEW'
+            self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_callback_px, args, 'WINDOW', 'POST_PIXEL')
+            
+            v = context.active_object.impulse_props.v
+            
+            self.new = Vector((v.x, v.y, v.z))
+            self.c = context.active_object
+            self.x = event.mouse_region_x
+            self.y = event.mouse_region_y
+            self.update = False
+            self.message = ""
+
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'WARNING'}, "View3D not found, cannot run operator")
+            return {'CANCELLED'}
 
 class ImpulseAddObject(bpy.types.Operator):
     bl_idname = "rigidbody.impulse_add_object"
@@ -125,6 +257,7 @@ class ImpulseSetRotation(bpy.types.Operator):
 class ImpulseInitializeVelocity(bpy.types.Operator):
     bl_idname = "rigidbody.impulse_initialize_velocity"
     bl_label = "Initialize Velocity"
+    bl_description = "Apply settings to the selected rigidbody"
     
     @classmethod
     def poll(cls, context):
@@ -212,28 +345,39 @@ class ImpulsePanel(bpy.types.Panel):
                 
                 row.operator('rigidbody.impulse_remove_object', icon='X')
                 row = layout.row()
-                column = row.column(align=True)
-                column.prop(o, 's')
-                column.operator("rigidbody.impulse_set_location", icon='MAN_TRANS')
-                column.prop(o, 'r')
-                column.operator("rigidbody.impulse_set_rotation", icon='MAN_ROT')
+                row.prop(o, 'mode', expand=True)
                 
-                column = row.column()
-                column.prop(o, 'v')
-                #column.prop(props, 'total_v')
-                #total_v = math.sqrt(pow(props.v.x, 2) + pow(props.v.y, 2) + pow(props.v.z, 2))
-                #label = "Total Velocity: " + "{:10.4f}".format(total_v)
-                #column.label(text=label)
-                column.prop(o, 'av')
+                if o.mode == "initv":
+                    row = layout.row()
+                    column = row.column(align=True)
+                    column.prop(o, 's')
+                    column.operator("rigidbody.impulse_set_location", icon='MAN_TRANS')
+                    column.separator()
+                    column.prop(o, 'v')
+                    column.operator("rigidbody.impulse_set_velocity", icon='RESTRICT_SELECT_OFF')
+                    
+                    column = row.column(align=True)
+                    column.prop(o, 'r')
+                    column.operator("rigidbody.impulse_set_rotation", icon='MAN_ROT')
+                    column.separator()
+                    column.prop(o, 'av')
+                    
+                    layout.row().separator()
+                    
+                    row = layout.row()
+                    row.prop(o, 'start_frame')                    
+                    layout.row().operator("rigidbody.impulse_initialize_velocity", icon='MOD_PHYSICS')
                 
-                row = layout.row()
-                row.separator()
-                
-                row = layout.row()
-                row.prop(o, 'start_frame')
-                
-                
-                layout.row().operator("rigidbody.impulse_initialize_velocity", icon='MOD_PHYSICS')
+                elif o.mode == "goal":
+                    row = layout.row()
+                    column = row.column(align=True)
+                    column.prop(o, 's')
+                    column.operator("rigidbody.impulse_set_location", icon='MAN_TRANS')
+                    
+                    column = row.column(align=True)
+                    column.prop(o, 'r')
+                    column.operator("rigidbody.impulse_set_rotation", icon='MAN_ROT')
+                    
             else:
                 row.operator('rigidbody.impulse_add_object', icon='ZOOMIN')
             
@@ -255,6 +399,11 @@ class ImpulsePanel(bpy.types.Panel):
 
 # Addon Properties
 class ImpulseObjectProperties(bpy.types.PropertyGroup):
+    mode = bpy.props.EnumProperty(
+        name="Mode",
+        items=[("initv", "Initial Velocity", "Set initial velocity"),
+               ("goal",  "Goal",             "Set the goal")],
+        default='initv')
     start_frame = bpy.props.IntProperty(
         name="Start Frame",
         description="Frame to start velocity initialization on",
@@ -273,8 +422,7 @@ class ImpulseObjectProperties(bpy.types.PropertyGroup):
     v = bpy.props.FloatVectorProperty(
         name="Velocity",
         description="Set the velocity of the object",
-        subtype='VELOCITY',
-        update=update_total_v)
+        subtype='VELOCITY')
         
     av = bpy.props.FloatVectorProperty(
         name="Angular Velocity",
