@@ -29,151 +29,8 @@ def set_quality(self, context):
     elif q == 'medium':
         bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 10
     elif q == 'high':
-        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 20
-        
-def update_total_v(self, context):
-    props = context.scene.impulse_props
-    total_v = math.sqrt(pow(props.v.x, 2) + pow(props.v.y, 2) + pow(props.v.z, 2))
-    
-    props.total_v = total_v
-    
-def update_individual_v(self, context):
-    props = context.scene.impulse_props
-    old_v = math.sqrt(pow(props.v.x, 2) + pow(props.v.y, 2) + pow(props.v.z, 2))
-    
-    if old_v != 0:
-        props.v.x = (props.total_v * props.v.x) / old_v
-        props.v.y = (props.total_v * props.v.y) / old_v
-        props.v.z = (props.total_v * props.v.z) / old_v
-        
-        
-def draw_line(begin, end):
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glColor4f(0.9, 0.0, 0.0, 1.0)
-    bgl.glLineWidth(5)
-    
-    bgl.glBegin(bgl.GL_LINE_STRIP)
-    
-    origin = bpy_extras.view3d_utils.location_3d_to_region_2d(bpy.context.region, bpy.context.space_data.region_3d, begin)
-    end_point = bpy_extras.view3d_utils.location_3d_to_region_2d(bpy.context.region, bpy.context.space_data.region_3d, begin + end)
+        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 20  
 
-    bgl.glVertex2f(origin.x, origin.y)
-    bgl.glVertex2f(end_point.x, end_point.y)
-    bgl.glEnd()
-    
-    # Get direction
-    
-    # Draw arrow
-    #bgl.glBegin(bgl.GL_TRIANGLES);
-    #bgl.glVertex2f(end_point.x, end_point.y);
-    #bgl.glVertex2f(end_point.x - 10, end_point.y - 10);
-    #bgl.glVertex2f(end_point.x - 10, end_point.y + 10);
-    #bgl.glEnd()
-
-
-def draw_callback_px(self, context):
-    font_id = 1
-    
-    origin = bpy_extras.view3d_utils.location_3d_to_region_2d(bpy.context.region, bpy.context.space_data.region_3d, self.c.location)
-    
-    # Get the distance moved with the axis
-    if self.message == "X":
-        self.new.x = (self.dx - origin.x) * 0.1
-
-    if self.message == "Y":
-        self.new.y = (self.dx - origin.x) * 0.1
-
-    if self.message == "Z":
-        self.new.z = (self.dx - origin.x) * 0.1
-
-    bgl.glColor3f(1, 1, 1)
-    blf.position(font_id, 15, 30, 0)
-    blf.size(font_id, 20, 72)
-    blf.draw(font_id, "Setting {}".format(self.message))
-
-    draw_line(self.c.location, self.new)
-
-class ImpulseSetVelocity(bpy.types.Operator):
-    bl_idname = "rigidbody.impulse_set_velocity"
-    bl_label = "Set Velocity"
-    bl_description = "Modal Operator to set the velocity"
-
-    def modal(self, context, event):
-        context.area.tag_redraw()
-
-        if event.type == 'MOUSEMOVE':
-            self.dx = event.mouse_region_x
-            self.dy = event.mouse_region_y
-            
-        elif (event.type == 'X') and (event.value == 'PRESS'):
-            if not self.update: self.update_initial(event)
-            self.message = "X"
-            
-        elif (event.type == 'X') and (event.value == 'RELEASE'):
-            self.message = ""
-            self.update = False
-        
-        elif (event.type == 'Y') and (event.value == 'PRESS'):
-            if not self.update: self.update_initial(event)
-            self.message = "Y"
-            
-        elif (event.type == 'Y') and (event.value == 'RELEASE'):
-            self.message = ""
-            self.update = False
-            
-        elif (event.type == 'Z') and (event.value == 'PRESS'):
-            if not self.update: self.update_initial(event)
-            self.message = "Z"
-            
-        elif (event.type == 'Z') and (event.value == 'RELEASE'):
-            self.message = ""
-            self.update = False
-
-        elif event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
-            return {'PASS_THROUGH'}
-
-        elif event.type == 'LEFTMOUSE':
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
-            
-            self.c.impulse_props.v.x = self.new.x
-            self.c.impulse_props.v.y = self.new.y
-            self.c.impulse_props.v.z = self.new.z
-            
-            return {'FINISHED'}
-
-        elif event.type in {'RIGHTMOUSE', 'ESC'}:
-            bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
-            return {'CANCELLED'}
-
-        return {'RUNNING_MODAL'}
-    
-    def update_initial(self, event):        
-        self.x = event.mouse_region_x
-        self.y = event.mouse_region_y
-        self.update = True
-    
-    def invoke(self, context, event):
-        if context.area.type == 'VIEW_3D':
-            # the arguments we pass the the callback
-            args = (self, context)
-            # Add the region OpenGL drawing callback
-            # draw in view space with 'POST_VIEW' and 'PRE_VIEW'
-            self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_callback_px, args, 'WINDOW', 'POST_PIXEL')
-            
-            v = context.active_object.impulse_props.v
-            
-            self.new = Vector((v.x, v.y, v.z))
-            self.c = context.active_object
-            self.x = event.mouse_region_x
-            self.y = event.mouse_region_y
-            self.update = False
-            self.message = ""
-
-            context.window_manager.modal_handler_add(self)
-            return {'RUNNING_MODAL'}
-        else:
-            self.report({'WARNING'}, "View3D not found, cannot run operator")
-            return {'CANCELLED'}
 
 class ImpulseAddObject(bpy.types.Operator):
     bl_idname = "rigidbody.impulse_add_object"
@@ -252,6 +109,24 @@ class ImpulseSetRotation(bpy.types.Operator):
     def execute(self, context):
         context.active_object.impulse_props.r = context.active_object.rotation_euler
         return {'FINISHED'}
+    
+
+class ImpulseAddEmpty(bpy.types.Operator):
+    bl_idname = "rigidbody.impulse_add_empty"
+    bl_label = "Use Empty"
+    bl_description = "Create an empty to be used as the goal object"
+    
+    def execute(self, context):
+        impulse_object = context.active_object
+        bpy.ops.object.empty_add()
+        empty = context.active_object
+        
+        empty.name = "impulse_goal_" + impulse_object.name
+        impulse_object.impulse_props.obj = empty.name
+        
+        empty.location = impulse_object.location
+        
+        return {'FINISHED'}
 
     
 class ImpulseInitializeVelocity(bpy.types.Operator):
@@ -318,11 +193,120 @@ class ImpulseInitializeVelocity(bpy.types.Operator):
         
         settings = context.scene.impulse_settings
         
-        if settings.auto_play and not bpy.context.screen.is_animation_playing:
-            bpy.ops.screen.animation_play()
+        #if settings.auto_play and not bpy.context.screen.is_animation_playing:
+        #    bpy.ops.screen.animation_play()
+            
+        return {'FINISHED'}
+
+    
+class ImpulseSetGoal(bpy.types.Operator):
+    bl_idname = "rigidbody.impulse_set_goal"
+    bl_label = "Set Goal"
+    bl_description = "Apply settings to the selected rigidbody"
+    
+    @classmethod
+    def poll(cls, context):
+        if context.active_object:
+            return context.active_object.type == 'MESH'
+
+    def execute(self, context):
+        object = bpy.context.active_object
+        props = object.impulse_props
+        frame_rate = bpy.context.scene.render.fps
+        empty = bpy.data.objects[props.obj]
+
+        # Make sure it is a rigid body
+        if object.rigid_body is None:
+            bpy.ops.rigidbody.objects_add()
+        
+        # Animate it!
+        object.animation_data_clear()
+        
+        if bpy.context.scene.frame_start > props.start_frame:
+            props.start_frame = bpy.context.scene.frame_start
+        
+        bpy.context.scene.frame_current = props.start_frame
+        
+        # Calculate the end frame
+        dx = props.s.x - empty.location.x
+        dy = props.s.y - empty.location.y
+        dz = props.s.z - empty.location.z
+        
+        distance = math.sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))
+        
+        if props.gv != 0:
+            sec = distance / props.gv
+        else:
+            sec = 0
+            
+        frames = sec * frame_rate
+        
+        # First keyframe
+        object.location = props.s
+        object.rotation_euler = props.r
+        set_keyframes(object)      
+        
+        # Second Keyframe
+        bpy.context.scene.frame_current += frames
+        object.location = empty.location
+        object.rotation_euler = empty.rotation_euler
+        set_keyframes(object)
+        
+        # Set animated checkbox
+        object.rigid_body.kinematic = True
+        object.keyframe_insert('rigid_body.kinematic')
+        
+        bpy.context.scene.frame_current += 1
+        
+        # Set unanimated checkbox
+        object.rigid_body.kinematic = False
+        object.keyframe_insert('rigid_body.kinematic')
+
+        # Finally, set the animation curve to vector for constant motion
+        bpy.context.area.type = 'GRAPH_EDITOR'
+        bpy.ops.graph.select_all_toggle()
+        bpy.ops.graph.select_all_toggle()
+        bpy.ops.graph.interpolation_type(type='LINEAR')
+        bpy.context.area.type = 'VIEW_3D'
+        
+        bpy.context.scene.frame_current = 0
+        
+        settings = context.scene.impulse_settings
+        
+        #if settings.auto_play and not bpy.context.screen.is_animation_playing:
+        #    bpy.ops.screen.animation_play()
             
         return {'FINISHED'}
     
+
+class ImpulseExecute(bpy.types.Operator):
+    bl_idname = "rigidbody.impulse_execute"
+    bl_label = "Update All"
+    bl_description = "Apply all changes to each impulse object"
+    
+    @classmethod
+    def poll(cls, context):
+        if 'impulse_objects' in bpy.data.groups:
+            if list(bpy.data.groups['impulse_objects'].objects):
+               return True 
+
+    def execute(self, context):
+        for o in bpy.data.groups['impulse_objects'].objects:
+            bpy.ops.object.select_all(action='DESELECT')
+
+            bpy.context.scene.objects.active = o
+            o.select = True
+            
+            if o.impulse_props.mode == 'initv':
+                bpy.ops.rigidbody.impulse_initialize_velocity()
+            elif o.impulse_props.mode == 'goal':
+                bpy.ops.rigidbody.impulse_set_goal()
+                
+            settings = context.scene.impulse_settings
+            if settings.auto_play and not bpy.context.screen.is_animation_playing:
+                bpy.ops.screen.animation_play()
+        
+        return {'FINISHED'}
     
 class ImpulsePanel(bpy.types.Panel):
     bl_label = "Impulse"
@@ -354,7 +338,6 @@ class ImpulsePanel(bpy.types.Panel):
                     column.operator("rigidbody.impulse_set_location", icon='MAN_TRANS')
                     column.separator()
                     column.prop(o, 'v')
-                    column.operator("rigidbody.impulse_set_velocity", icon='RESTRICT_SELECT_OFF')
                     
                     column = row.column(align=True)
                     column.prop(o, 'r')
@@ -378,6 +361,20 @@ class ImpulsePanel(bpy.types.Panel):
                     column.prop(o, 'r')
                     column.operator("rigidbody.impulse_set_rotation", icon='MAN_ROT')
                     
+                    layout.row().separator()
+                    
+                    row = layout.row(align=True)
+                    # Goal Settings
+                    row.prop_search(o, 'obj', context.scene, 'objects')
+                    row.operator("rigidbody.impulse_add_empty", icon='EMPTY_DATA')
+                    
+                    row = layout.row()
+                    row.prop(o, 'gv')
+                    layout.separator()
+                    row = layout.row()
+                    row.prop(o, 'start_frame')                    
+                    layout.row().operator("rigidbody.impulse_set_goal", icon='MOD_PHYSICS')
+                    
             else:
                 row.operator('rigidbody.impulse_add_object', icon='ZOOMIN')
             
@@ -392,6 +389,8 @@ class ImpulsePanel(bpy.types.Panel):
             row = box.row()
             #row.alignment = 'CENTER'
             row.prop(settings, 'auto_play')
+            row = box.row()
+            row.operator('rigidbody.impulse_execute', icon='MOD_PHYSICS')
             
         else:
             row.operator('rigidbody.impulse_add_object', icon='ZOOMIN')
@@ -428,6 +427,16 @@ class ImpulseObjectProperties(bpy.types.PropertyGroup):
         name="Angular Velocity",
         description="Set the angular velocity of the object",
         subtype='VELOCITY')
+        
+    obj = bpy.props.StringProperty(
+        name="Goal",
+        description="What object should be the goal?")
+        
+    # Goal velocity? :)
+    gv = bpy.props.FloatProperty(
+        name="Vel",
+        description="Set the velocity of the object",
+        unit='VELOCITY')
 
 class ImpulseSettings(bpy.types.PropertyGroup):
     quality = bpy.props.EnumProperty(
