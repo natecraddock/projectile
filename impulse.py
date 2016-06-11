@@ -291,10 +291,12 @@ class ImpulseExecute(bpy.types.Operator):
                return True 
 
     def execute(self, context):
+        selected = context.active_object
+    
         for o in bpy.data.groups['impulse_objects'].objects:
             bpy.ops.object.select_all(action='DESELECT')
 
-            bpy.context.scene.objects.active = o
+            context.scene.objects.active = o
             o.select = True
             
             if o.impulse_props.mode == 'initv':
@@ -305,6 +307,10 @@ class ImpulseExecute(bpy.types.Operator):
             settings = context.scene.impulse_settings
             if settings.auto_play and not bpy.context.screen.is_animation_playing:
                 bpy.ops.screen.animation_play()
+        
+        bpy.ops.object.select_all(action='DESELECT')
+        context.scene.objects.active = selected
+        selected.select = True
         
         return {'FINISHED'}
     
