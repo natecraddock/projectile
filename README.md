@@ -8,13 +8,13 @@
 - **Real-World Units:** Impulse will use the same units that are used in the .blend file, so you can use m/s or ft/s so you can truly know how fast your objects will be moving.
 - **Update All:** You can update all changes to all Impulse Objects with one click, and have the animation play automatically!
 
-# Tutorial
-## Add Object
+## Tutorial
+### Add Object
 ![Add Object](https://raw.githubusercontent.com/natecraddock/impulse/master/images/add.PNG)
 
 Click **Add Object** to set an object as an Impulse object. It will set it to be an active rigidbody object, and will set the **Initial Location** and **Initial Rotation** to any transforms you have applied.
 
-## Initial Velocity Mode
+### Initial Velocity Mode
 ![Initial Velocity](https://raw.githubusercontent.com/natecraddock/impulse/master/images/InitVel.PNG)
 
 In **Initial Velocity Mode**, you can set the initial velocity for an object and let it fly! Just simply
@@ -27,7 +27,7 @@ Choose a **Start Frame**
 
 Then click **Initialize Velocity**, then you can play the animation and see the results.
 
-## Set Goal Mode
+### Set Goal Mode
 ![Set Goal](https://raw.githubusercontent.com/natecraddock/impulse/master/images/Goal.PNG)
 
 In **Goal Mode**, you can set a goal object for the Impulse object to reach! Just simply
