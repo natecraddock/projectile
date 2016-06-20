@@ -51,6 +51,10 @@ class ImpulseAddObject(bpy.types.Operator):
         # Make sure it is a rigid body
         if context.active_object.rigid_body is None:
             bpy.ops.rigidbody.objects_add()
+            
+        # Now initialize the location and rotation
+        context.active_object.impulse_props.s = context.active_object.location
+        context.active_object.impulse_props.r = context.active_object.rotation_euler
         
         return {'FINISHED'}
         
