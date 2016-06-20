@@ -40,7 +40,7 @@ Set a **Velocity**
 
 Then click **Set Goal**
 
-## Settings
+### Settings
 ![Settings](https://raw.githubusercontent.com/natecraddock/impulse/master/images/settings.PNG)
 
 Choose a **Quality Level** to reduce glitchy physics simulations.
