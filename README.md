@@ -47,4 +47,4 @@ Choose a **Quality Level** to reduce glitchy physics simulations.
 
 Check **Auto Play** to automatically start the animation player after running **Update All**
 
-Click **Update ALl** to run the operator for each Impulse object in the scene. Really handy when you have a lot of objects that you change settings on frequently.
+Click **Update All** to run the operator for each Impulse object in the scene. Really handy when you have a lot of objects that you change settings on frequently.
