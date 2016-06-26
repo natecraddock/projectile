@@ -482,7 +482,7 @@ class ImpulseObjectProperties(bpy.types.PropertyGroup):
     angular_rot = bpy.props.BoolProperty(
         name="Use Rotational Units",
         description="Use degrees or radians for angular velocity instead of metric or imperial units",
-        default=True)
+        default=False)
 
 class ImpulseSettings(bpy.types.PropertyGroup):
     quality = bpy.props.EnumProperty(
