@@ -1,3 +1,21 @@
+"""
+Impulse
+Copyright (C) 2016 Nathan Craddock
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
 bl_info = {
     "name": "Impulse",
     "author": "Nathan Craddock",
@@ -13,8 +31,6 @@ import bpy
 from mathutils import Vector
 import math
 import bpy_extras
-import bgl
-import blf
 
 # Set keyframes
 def set_keyframes(o):
@@ -164,9 +180,14 @@ class ImpulseInitializeVelocity(bpy.types.Operator):
         displacement_y = props.v.y / frame_rate
         displacement_z = props.v.z / frame_rate
         
-        rdisplacement_x = props.av.x / frame_rate
-        rdisplacement_y = props.av.y / frame_rate
-        rdisplacement_z = props.av.z / frame_rate
+        if props.angular_rot:
+            rdisplacement_x = props.av_true.x / frame_rate
+            rdisplacement_y = props.av_true.y / frame_rate
+            rdisplacement_z = props.av_true.z / frame_rate
+        else:
+            rdisplacement_x = props.av.x / frame_rate
+            rdisplacement_y = props.av.y / frame_rate
+            rdisplacement_z = props.av.z / frame_rate
         
         new_loc = Vector((props.s.x + displacement_x, props.s.y + displacement_y, props.s.z + displacement_z))
         new_rot = Vector((props.r.x + rdisplacement_x, props.r.y + rdisplacement_y, props.r.z + rdisplacement_z))
@@ -353,7 +374,11 @@ class ImpulsePanel(bpy.types.Panel):
                     column.prop(o, 'r')
                     column.operator("rigidbody.impulse_set_rotation", icon='MAN_ROT')
                     column.separator()
-                    column.prop(o, 'av')
+                    if context.active_object.impulse_props.angular_rot:
+                        column.prop(o, 'av_true')
+                    else:
+                        column.prop(o, 'av')
+                    column.prop(o, 'angular_rot')
                     
                     layout.row().separator()
                     
@@ -435,8 +460,13 @@ class ImpulseObjectProperties(bpy.types.PropertyGroup):
         
     av = bpy.props.FloatVectorProperty(
         name="Angular Velocity",
-        description="Set the angular velocity of the object",
+        description="Set the angular velocity of the object (in DISTANCE/second)",
         subtype='VELOCITY')
+        
+    av_true = bpy.props.FloatVectorProperty(
+        name="Angular Velocity",
+        description="Set the angular velocity of the object (in ROTATION/second)",
+        subtype='EULER')
         
     obj = bpy.props.StringProperty(
         name="Goal",
@@ -447,6 +477,12 @@ class ImpulseObjectProperties(bpy.types.PropertyGroup):
         name="Vel",
         description="Set the velocity of the object",
         unit='VELOCITY')
+        
+    # Option for changing types of angular velocity
+    angular_rot = bpy.props.BoolProperty(
+        name="Use Rotational Units",
+        description="Use degrees or radians for angular velocity instead of metric or imperial units",
+        default=True)
 
 class ImpulseSettings(bpy.types.PropertyGroup):
     quality = bpy.props.EnumProperty(
