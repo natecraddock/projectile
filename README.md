@@ -2,13 +2,13 @@
 
 [Download Impulse](https://raw.githubusercontent.com/natecraddock/impulse/master/impulse.py)
 
-###Impulse features:
+### Impulse features:
 - **Hassle-Free Physics:** Impulse handles all the keyframing so all you have to do is set a speed and click a button! Much faster and more accurate than doing this manually.
 - **Object Settings:** Each object has its own settings tied to it, so don't worry about making a mistake because you can always go back and change something!
 - **Real-World Units:** Impulse will use the same units that are used in the .blend file, so you can use m/s or ft/s so you can truly know how fast your objects will be moving.
 - **Update All:** You can update all changes to all Impulse Objects with one click, and have the animation play automatically!
 
-## Tutorial
+## Usage
 ### Add Object
 ![Add Object](https://raw.githubusercontent.com/natecraddock/impulse/master/images/add.PNG)
 
