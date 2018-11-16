@@ -1,5 +1,5 @@
 """
-Impulse
+Projectile
 Copyright (C) 2016 Nathan Craddock
 
 This program is free software: you can redistribute it and/or modify
@@ -17,10 +17,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 bl_info = {
-    "name": "Impulse",
+    "name": "Projectile",
     "author": "Nathan Craddock",
-    "version": (1, 0),
-    "blender": (2, 77, 0),
+    "version": (1, 1),
+    "blender": (2, 79, 0),
     "location": "Object Mode > Tool Shelf > Physics Tab",
     "description": "Set initial velocities for rigid body physics",
     "tracker_url": "",
@@ -39,7 +39,7 @@ def set_keyframes(o):
     
 def set_quality(self, context):
     frame_rate = context.scene.render.fps
-    q = context.scene.impulse_settings.quality
+    q = context.scene.projectile_settings.quality
     if q == 'low':
         bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 2
     elif q == 'medium':
@@ -48,10 +48,10 @@ def set_quality(self, context):
         bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 20  
 
 
-class ImpulseAddObject(bpy.types.Operator):
-    bl_idname = "rigidbody.impulse_add_object"
+class ProjectileAddObject(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_add_object"
     bl_label = "Add Object"
-    bl_description = "Add object to Impulse"
+    bl_description = "Add object to Projectile"
     
     @classmethod
     def poll(cls, context):
@@ -59,34 +59,34 @@ class ImpulseAddObject(bpy.types.Operator):
             return context.active_object.type == 'MESH'
         
     def execute(self, context):
-        if 'impulse_objects' not in bpy.data.groups:
-            bpy.ops.group.create(name='impulse_objects')
+        if 'projectile_objects' not in bpy.data.groups:
+            bpy.ops.group.create(name='projectile_objects')
         
-        bpy.ops.object.group_link(group='impulse_objects')
+        bpy.ops.object.group_link(group='projectile_objects')
         
         # Make sure it is a rigid body
         if context.active_object.rigid_body is None:
             bpy.ops.rigidbody.objects_add()
             
         # Now initialize the location and rotation
-        context.active_object.impulse_props.s = context.active_object.location
-        context.active_object.impulse_props.r = context.active_object.rotation_euler
+        context.active_object.projectile_props.s = context.active_object.location
+        context.active_object.projectile_props.r = context.active_object.rotation_euler
         
         return {'FINISHED'}
         
 
-class ImpulseRemoveObject(bpy.types.Operator):
-    bl_idname = "rigidbody.impulse_remove_object"
+class ProjectileRemoveObject(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_remove_object"
     bl_label = "Remove Object"
-    bl_description = "Remove object from Impulse"
+    bl_description = "Remove object from Projectile"
     
     @classmethod
     def poll(cls, context):
         if context.active_object:
-            return context.active_object in list(bpy.data.groups['impulse_objects'].objects)
+            return context.active_object in list(bpy.data.groups['projectile_objects'].objects)
         
     def execute(self, context):
-        bpy.ops.group.objects_remove(group="impulse_objects")
+        bpy.ops.group.objects_remove(group="projectile_objects")
         
         # Remove animation data
         context.active_object.animation_data_clear()
@@ -102,8 +102,8 @@ class ImpulseRemoveObject(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class ImpulseSetLocation(bpy.types.Operator):
-    bl_idname = "rigidbody.impulse_set_location"
+class ProjectileSetLocation(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_set_location"
     bl_label = "Use Current"  
     bl_description = "Use the current location"
     
@@ -113,11 +113,17 @@ class ImpulseSetLocation(bpy.types.Operator):
             return context.active_object.type == 'MESH'
     
     def execute(self, context):
-        context.active_object.impulse_props.s = context.active_object.location
+        context.active_object.projectile_props.s = context.active_object.location
+        
+        # Also apply the operator to all other projectile objects that are selected
+        for o in bpy.context.scene.objects:
+            if o.select and o in list(bpy.data.groups['projectile_objects'].objects):
+                o.projectile_props.s = o.location
+        
         return {'FINISHED'}
     
-class ImpulseSetRotation(bpy.types.Operator):
-    bl_idname = "rigidbody.impulse_set_rotation"
+class ProjectileSetRotation(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_set_rotation"
     bl_label = "Use Current"  
     bl_description = "Use the current rotation"
     
@@ -127,30 +133,36 @@ class ImpulseSetRotation(bpy.types.Operator):
             return context.active_object.type == 'MESH'
     
     def execute(self, context):
-        context.active_object.impulse_props.r = context.active_object.rotation_euler
+        context.active_object.projectile_props.r = context.active_object.rotation_euler
+        
+        # Also apply the operator to all other projectile objects that are selected
+        for o in bpy.context.scene.objects:
+            if o.select and o in list(bpy.data.groups['projectile_objects'].objects):
+                o.projectile_props.r = o.rotation_euler
+                
         return {'FINISHED'}
     
 
-class ImpulseAddEmpty(bpy.types.Operator):
-    bl_idname = "rigidbody.impulse_add_empty"
+class ProjectileAddEmpty(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_add_empty"
     bl_label = "Use Empty"
     bl_description = "Create an empty to be used as the goal object"
     
     def execute(self, context):
-        impulse_object = context.active_object
+        projectile_object = context.active_object
         bpy.ops.object.empty_add()
         empty = context.active_object
         
-        empty.name = "impulse_goal_" + impulse_object.name
-        impulse_object.impulse_props.obj = empty.name
+        empty.name = "projectile_goal_" + projectile_object.name
+        projectile_object.projectile_props.obj = empty.name
         
-        empty.location = impulse_object.location
+        empty.location = projectile_object.location
         
         return {'FINISHED'}
 
     
-class ImpulseInitializeVelocity(bpy.types.Operator):
-    bl_idname = "rigidbody.impulse_initialize_velocity"
+class ProjectileInitializeVelocity(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_initialize_velocity"
     bl_label = "Initialize Velocity"
     bl_description = "Apply settings to the selected rigidbody"
     
@@ -160,8 +172,15 @@ class ImpulseInitializeVelocity(bpy.types.Operator):
             return context.active_object.type == 'MESH'
 
     def execute(self, context):
-        object = bpy.context.active_object
-        props = object.impulse_props
+        for o in bpy.context.scene.objects:
+            if o.select and o in list(bpy.data.groups['projectile_objects'].objects):
+                self.initialize_velocity(context, o)
+            
+        return {'FINISHED'}
+        
+    def initialize_velocity(self, context, o):
+        object = o
+        props = object.projectile_props
         frame_rate = bpy.context.scene.render.fps
 
         # Make sure it is a rigid body
@@ -216,16 +235,14 @@ class ImpulseInitializeVelocity(bpy.types.Operator):
         
         bpy.context.scene.frame_current = 0
         
-        settings = context.scene.impulse_settings
+        settings = context.scene.projectile_settings
         
         #if settings.auto_play and not bpy.context.screen.is_animation_playing:
         #    bpy.ops.screen.animation_play()
-            
-        return {'FINISHED'}
 
     
-class ImpulseSetGoal(bpy.types.Operator):
-    bl_idname = "rigidbody.impulse_set_goal"
+class ProjectileSetGoal(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_set_goal"
     bl_label = "Set Goal"
     bl_description = "Apply settings to the selected rigidbody"
     
@@ -236,7 +253,7 @@ class ImpulseSetGoal(bpy.types.Operator):
 
     def execute(self, context):
         object = bpy.context.active_object
-        props = object.impulse_props
+        props = object.projectile_props
         frame_rate = bpy.context.scene.render.fps
         empty = bpy.data.objects[props.obj]
 
@@ -296,7 +313,7 @@ class ImpulseSetGoal(bpy.types.Operator):
         
         bpy.context.scene.frame_current = 0
         
-        settings = context.scene.impulse_settings
+        settings = context.scene.projectile_settings
         
         #if settings.auto_play and not bpy.context.screen.is_animation_playing:
         #    bpy.ops.screen.animation_play()
@@ -304,32 +321,32 @@ class ImpulseSetGoal(bpy.types.Operator):
         return {'FINISHED'}
     
 
-class ImpulseExecute(bpy.types.Operator):
-    bl_idname = "rigidbody.impulse_execute"
+class ProjectileExecute(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_execute"
     bl_label = "Update All"
-    bl_description = "Apply all changes to each impulse object"
+    bl_description = "Apply all changes to each projectile object"
     
     @classmethod
     def poll(cls, context):
-        if 'impulse_objects' in bpy.data.groups:
-            if list(bpy.data.groups['impulse_objects'].objects):
+        if 'projectile_objects' in bpy.data.groups:
+            if list(bpy.data.groups['projectile_objects'].objects):
                return True 
 
     def execute(self, context):
         selected = context.active_object
     
-        for o in bpy.data.groups['impulse_objects'].objects:
+        for o in bpy.data.groups['projectile_objects'].objects:
             bpy.ops.object.select_all(action='DESELECT')
 
             context.scene.objects.active = o
             o.select = True
             
-            if o.impulse_props.mode == 'initv':
-                bpy.ops.rigidbody.impulse_initialize_velocity()
-            elif o.impulse_props.mode == 'goal':
-                bpy.ops.rigidbody.impulse_set_goal()
+            if o.projectile_props.mode == 'initv':
+                bpy.ops.rigidbody.projectile_initialize_velocity()
+            elif o.projectile_props.mode == 'goal':
+                bpy.ops.rigidbody.projectile_set_goal()
                 
-            settings = context.scene.impulse_settings
+            settings = context.scene.projectile_settings
             if settings.auto_play and not bpy.context.screen.is_animation_playing:
                 bpy.ops.screen.animation_play()
         
@@ -339,9 +356,9 @@ class ImpulseExecute(bpy.types.Operator):
         
         return {'FINISHED'}
     
-class ImpulsePanel(bpy.types.Panel):
-    bl_label = "Impulse"
-    bl_idname = "impulse_panel"
+class ProjectilePanel(bpy.types.Panel):
+    bl_label = "Projectile"
+    bl_idname = "projectile_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
     bl_context = "objectmode"
@@ -353,12 +370,12 @@ class ImpulsePanel(bpy.types.Panel):
         row = layout.row(align=True)        
         
         # If the group exists and has objects
-        if 'impulse_objects' in bpy.data.groups:
-            if context.active_object and context.active_object in list(bpy.data.groups['impulse_objects'].objects):
-                props = context.object.impulse_props
-                o = context.active_object.impulse_props
+        if 'projectile_objects' in bpy.data.groups:
+            if context.active_object and context.active_object in list(bpy.data.groups['projectile_objects'].objects):
+                props = context.object.projectile_props
+                o = context.active_object.projectile_props
                 
-                row.operator('rigidbody.impulse_remove_object', icon='X')
+                row.operator('rigidbody.projectile_remove_object', icon='X')
                 row = layout.row()
                 row.prop(o, 'mode', expand=True)
                 
@@ -366,15 +383,15 @@ class ImpulsePanel(bpy.types.Panel):
                     row = layout.row()
                     column = row.column(align=True)
                     column.prop(o, 's')
-                    column.operator("rigidbody.impulse_set_location", icon='MAN_TRANS')
+                    column.operator("rigidbody.projectile_set_location", icon='MAN_TRANS')
                     column.separator()
                     column.prop(o, 'v')
                     
                     column = row.column(align=True)
                     column.prop(o, 'r')
-                    column.operator("rigidbody.impulse_set_rotation", icon='MAN_ROT')
+                    column.operator("rigidbody.projectile_set_rotation", icon='MAN_ROT')
                     column.separator()
-                    if context.active_object.impulse_props.angular_rot:
+                    if context.active_object.projectile_props.angular_rot:
                         column.prop(o, 'av_true')
                     else:
                         column.prop(o, 'av')
@@ -384,37 +401,37 @@ class ImpulsePanel(bpy.types.Panel):
                     
                     row = layout.row()
                     row.prop(o, 'start_frame')                    
-                    layout.row().operator("rigidbody.impulse_initialize_velocity", icon='MOD_PHYSICS')
+                    layout.row().operator("rigidbody.projectile_initialize_velocity", icon='MOD_PHYSICS')
                 
                 elif o.mode == "goal":
                     row = layout.row()
                     column = row.column(align=True)
                     column.prop(o, 's')
-                    column.operator("rigidbody.impulse_set_location", icon='MAN_TRANS')
+                    column.operator("rigidbody.projectile_set_location", icon='MAN_TRANS')
                     
                     column = row.column(align=True)
                     column.prop(o, 'r')
-                    column.operator("rigidbody.impulse_set_rotation", icon='MAN_ROT')
+                    column.operator("rigidbody.projectile_set_rotation", icon='MAN_ROT')
                     
                     layout.row().separator()
                     
                     row = layout.row(align=True)
                     # Goal Settings
                     row.prop_search(o, 'obj', context.scene, 'objects')
-                    row.operator("rigidbody.impulse_add_empty", icon='EMPTY_DATA')
+                    row.operator("rigidbody.projectile_add_empty", icon='EMPTY_DATA')
                     
                     row = layout.row()
                     row.prop(o, 'gv')
                     layout.separator()
                     row = layout.row()
                     row.prop(o, 'start_frame')                    
-                    layout.row().operator("rigidbody.impulse_set_goal", icon='MOD_PHYSICS')
+                    layout.row().operator("rigidbody.projectile_set_goal", icon='MOD_PHYSICS')
                     
             else:
-                row.operator('rigidbody.impulse_add_object', icon='ZOOMIN')
+                row.operator('rigidbody.projectile_add_object', icon='ZOOMIN')
             
             # Addon settings
-            settings = context.scene.impulse_settings
+            settings = context.scene.projectile_settings
             
             layout.separator()
             box = layout.box()
@@ -425,14 +442,14 @@ class ImpulsePanel(bpy.types.Panel):
             #row.alignment = 'CENTER'
             row.prop(settings, 'auto_play')
             row = box.row()
-            row.operator('rigidbody.impulse_execute', icon='MOD_PHYSICS')
+            row.operator('rigidbody.projectile_execute', icon='MOD_PHYSICS')
             
         else:
-            row.operator('rigidbody.impulse_add_object', icon='ZOOMIN')
+            row.operator('rigidbody.projectile_add_object', icon='ZOOMIN')
 
 
 # Addon Properties
-class ImpulseObjectProperties(bpy.types.PropertyGroup):
+class ProjectileObjectProperties(bpy.types.PropertyGroup):
     mode = bpy.props.EnumProperty(
         name="Mode",
         items=[("initv", "Initial Velocity", "Set initial velocity"),
@@ -484,7 +501,7 @@ class ImpulseObjectProperties(bpy.types.PropertyGroup):
         description="Use degrees or radians for angular velocity instead of metric or imperial units",
         default=False)
 
-class ImpulseSettings(bpy.types.PropertyGroup):
+class ProjectileSettings(bpy.types.PropertyGroup):
     quality = bpy.props.EnumProperty(
         name="Quality",
         items=[("low", "Low", "Use low quality settings"),
@@ -501,15 +518,15 @@ class ImpulseSettings(bpy.types.PropertyGroup):
 def register():
     bpy.utils.register_module(__name__)
     
-    bpy.types.Object.impulse_props = bpy.props.PointerProperty(type=ImpulseObjectProperties)
-    bpy.types.Scene.impulse_settings = bpy.props.PointerProperty(type=ImpulseSettings)
+    bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ProjectileObjectProperties)
+    bpy.types.Scene.projectile_settings = bpy.props.PointerProperty(type=ProjectileSettings)
 
 
 def unregister():
     bpy.utils.unregister_module(__name__)
     
-    del bpy.types.Object.impulse_props
-    del bpy.types.Scene.impulse_settings
+    del bpy.types.Object.projectile_props
+    del bpy.types.Scene.projectile_settings
 
 
 if __name__ == "__main__":
