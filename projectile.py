@@ -29,12 +29,59 @@ bl_info = {
 
 import bpy
 from bpy.types import Header, Menu, Panel
+import gpu
+from gpu_extras.batch import batch_for_shader
 import mathutils
 
 import math
 
-def kinematic_displacement(velocity):
-    pass
+draw_trajectories = True
+
+
+# Kinematic Equation to find displacement over time
+def kinematic_displacement(initial, velocity, time):
+    frame_rate = bpy.context.scene.render.fps
+    gravity = bpy.context.scene.gravity
+    
+    dt = (time * 1.0) / frame_rate
+    ds = mathutils.Vector((0.0, 0.0, 0.0))
+        
+    ds.x = initial.x + (velocity.x * dt) + (0.5 * gravity.x * math.pow(dt, 2))
+    ds.y = initial.y + (velocity.y * dt) + (0.5 * gravity.y * math.pow(dt, 2))
+    ds.z = initial.z + (velocity.z * dt) + (0.5 * gravity.z * math.pow(dt, 2))
+    
+    return ds
+
+# Functions for draw handlers
+def draw_trajectory():
+    object = bpy.context.object
+    
+    coordinates = []
+    
+    # Generate coordinates
+    v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, 0)
+    coord = (v.x, v.y, v.z)
+    coordinates.append(coord)
+    
+    for frame in range(1, bpy.context.scene.frame_end):
+        v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, frame)
+        coord = (v.x, v.y, v.z)
+        coordinates.append(coord)
+        coordinates.append(coord)
+        
+    v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, bpy.context.scene.frame_end)
+    coord = (v.x, v.y, v.z)
+    coordinates.append(coord)
+    
+    shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+    batch = batch_for_shader(shader, 'LINES', {"pos" : coordinates})
+    
+    shader.bind()
+    shader.uniform_float("color", (1, 1, 1, 1))
+    
+    # Only draw if 
+    if draw_trajectories and object.select_get() and object.projectile:
+        batch.draw(shader)
 
 
 class PHYSICS_OT_projectile_add(bpy.types.Operator):
@@ -101,8 +148,6 @@ class PHYSICS_PT_projectile_launch(bpy.types.Operator):
     def execute(self, context):
         object = context.object
         properties = object.projectile_props
-        frame_rate = bpy.context.scene.render.fps
-        gravity = bpy.context.scene.gravity
         
         object.animation_data_clear()
         
@@ -110,16 +155,9 @@ class PHYSICS_PT_projectile_launch(bpy.types.Operator):
         if bpy.context.scene.frame_start > properties.start_frame:
             properties.start_frame = bpy.context.scene.frame_start
             
+        displacement = kinematic_displacement(properties.s, properties.v, 2)
+        
         bpy.context.scene.frame_current = properties.start_frame
-        
-        # Kinematic Equations
-        dt = 2.0 / frame_rate
-        ds = mathutils.Vector((0.0, 0.0, 0.0))
-        
-        ds.x = properties.s.x + (properties.v.x * dt) + (0.5 * gravity.x * math.pow(dt, 2))
-        ds.y = properties.s.y + (properties.v.y * dt) + (0.5 * gravity.y * math.pow(dt, 2))
-        ds.z = properties.s.z + (properties.v.z * dt) + (0.5 * gravity.z * math.pow(dt, 2))
-        
         # Set start keyframe
         object.location = properties.s
         object.keyframe_insert('location')
@@ -127,7 +165,7 @@ class PHYSICS_PT_projectile_launch(bpy.types.Operator):
         bpy.context.scene.frame_current += 2
         
         # Set end keyframe
-        object.location = ds
+        object.location = displacement
         object.keyframe_insert('location')
         
         # Set animated checkbox
@@ -212,6 +250,8 @@ def register():
         
     bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ProjectileObjectProperties)
     bpy.types.Object.projectile = bpy.props.BoolProperty(name="Projectile")
+    
+    bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
 
 def unregister():
     from bpy.utils import unregister_class
@@ -220,8 +260,9 @@ def unregister():
         
     del bpy.types.Object.projectile_props
     del bpy.types.Object.projectile
-        
     
+    bpy.types.SpaceView3D.draw_handler_remove(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
+
     
 if __name__ == "__main__":
     register()
