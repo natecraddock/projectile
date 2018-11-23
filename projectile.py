@@ -35,9 +35,6 @@ import mathutils
 
 import math
 
-draw_trajectories = True
-
-
 # Kinematic Equation to find displacement over time
 def kinematic_displacement(initial, velocity, time):
     frame_rate = bpy.context.scene.render.fps
@@ -55,6 +52,7 @@ def kinematic_displacement(initial, velocity, time):
 # Functions for draw handlers
 def draw_trajectory():
     object = bpy.context.object
+    draw = object.projectile_draw_trajectories
     
     coordinates = []
     
@@ -207,6 +205,9 @@ class PHYSICS_PT_projectile(Panel):
             
             row = layout.row()
             row.operator('rigidbody.projectile_launch')
+            
+            row=layout.row()
+            row.prop(context.object, 'projectile_draw_trajectories')
         else:
             row = layout.row()
             row.operator('rigidbody.projectile_add_object')
@@ -250,6 +251,7 @@ def register():
         
     bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ProjectileObjectProperties)
     bpy.types.Object.projectile = bpy.props.BoolProperty(name="Projectile")
+    bpy.types.Object.projectile_draw_trajectories = bpy.props.BoolProperty(name="Draw Trajectories", default=True)
     
     bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
 
