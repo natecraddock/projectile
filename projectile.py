@@ -78,7 +78,7 @@ def draw_trajectory():
     shader.uniform_float("color", (1, 1, 1, 1))
     
     # Only draw if 
-    if draw_trajectories and object.select_get() and object.projectile:
+    if draw and object.select_get() and object.projectile:
         batch.draw(shader)
 
 
