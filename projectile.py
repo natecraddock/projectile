@@ -35,6 +35,19 @@ import mathutils
 
 import math
 
+# Returns distance between two points in space
+def distance_between_points(origin, destination):
+    return math.sqrt(math.pow(destination.x - origin.x, 2) + math.pow(destination.y - origin.y, 2) + math.pow(destination.z - origin.z, 2))
+    
+# Raycast from origin to destination
+# Defaults to (nearly) infinite distance
+def raycast(origin, destination, distance=1.70141e+38):
+    direction = (destination - origin).normalized()
+    view_layer = bpy.context.view_layer
+    
+    cast = bpy.context.scene.ray_cast(view_layer, origin, direction, distance=distance)
+    return cast
+
 # Kinematic Equation to find displacement over time
 def kinematic_displacement(initial, velocity, time):
     frame_rate = bpy.context.scene.render.fps
@@ -55,21 +68,35 @@ def draw_trajectory():
     draw = object.projectile_draw_trajectories
     
     coordinates = []
+    cast = []
     
     # Generate coordinates
     v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, 0)
-    coord = (v.x, v.y, v.z)
+    coord = mathutils.Vector((v.x, v.y, v.z))
     coordinates.append(coord)
     
     for frame in range(1, bpy.context.scene.frame_end):
         v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, frame)
-        coord = (v.x, v.y, v.z)
+        coord = mathutils.Vector((v.x, v.y, v.z))
+        
+        # Get distance between previous and current position
+        distance = distance_between_points(coordinates[-1], coord)
+        
+        # Check if anything is in the way
+        cast = raycast(coordinates[-1], coord, distance)
+        
+        # If so, set that position as final position (avoid self intersections)
+        if cast[0] and cast[4] is not object:
+            coordinates.append(cast[1])
+            break
+        
         coordinates.append(coord)
         coordinates.append(coord)
         
-    v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, bpy.context.scene.frame_end)
-    coord = (v.x, v.y, v.z)
-    coordinates.append(coord)
+    if not cast[0]:
+        v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, bpy.context.scene.frame_end)
+        coord = mathutils.Vector((v.x, v.y, v.z))
+        coordinates.append(coord)
     
     shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
     batch = batch_for_shader(shader, 'LINES', {"pos" : coordinates})
