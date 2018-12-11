@@ -62,15 +62,10 @@ def kinematic_displacement(initial, velocity, time):
     
     return ds
 
-# Functions for draw handlers
-def draw_trajectory():
-    object = bpy.context.object
-    draw = object.projectile_draw_trajectories
-    
-    coordinates = []
-    cast = []
-    
+def calculate_trajectory(object):
     # Generate coordinates
+    cast = []
+    coordinates = []
     v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, 0)
     coord = mathutils.Vector((v.x, v.y, v.z))
     coordinates.append(coord)
@@ -97,6 +92,16 @@ def draw_trajectory():
         v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, bpy.context.scene.frame_end)
         coord = mathutils.Vector((v.x, v.y, v.z))
         coordinates.append(coord)
+        
+        
+    return coordinates
+
+# Functions for draw handlers
+def draw_trajectory():
+    object = bpy.context.object
+    draw = object.projectile_draw_trajectories
+    
+    coordinates = calculate_trajectory(object)
     
     shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
     batch = batch_for_shader(shader, 'LINES', {"pos" : coordinates})
@@ -206,7 +211,12 @@ class PHYSICS_PT_projectile_launch(bpy.types.Operator):
         bpy.context.scene.frame_current = 0
         
         return {'FINISHED'}
-        
+    
+
+# A function to initialize the velocity every time a UI value is updated
+def update_callback(self, context):
+    bpy.ops.rigidbody.projectile_launch()
+    return None
 
 # TODO: Decide where to best place these settings (maybe two panels?) Quick settings in sidebar
 # And detailed settings in physics tab
@@ -228,13 +238,18 @@ class PHYSICS_PT_projectile(Panel):
             row.operator('rigidbody.projectile_remove_object')
             
             row = layout.row()
-            row.prop(ob.projectile_props, 'v')
+            row.prop(ob.projectile_props, 's')
             
             row = layout.row()
-            row.operator('rigidbody.projectile_launch')
+            row.prop(ob.projectile_props, 'v')
             
-            row=layout.row()
-            row.prop(context.object, 'projectile_draw_trajectories')
+            # Is this necessary anymore?
+            # row = layout.row()
+            # row.operator('rigidbody.projectile_launch')
+            
+            row = layout.row()
+            row.prop(context.object, 'projectile_draw_trajectories')            
+
         else:
             row = layout.row()
             row.operator('rigidbody.projectile_add_object')
@@ -254,14 +269,18 @@ class ProjectileObjectProperties(bpy.types.PropertyGroup):
         default=1)
         
     s: bpy.props.FloatVectorProperty(
-        name="Location",
+        name="Initial Location",
         description="Initial position for the object",
-        subtype='TRANSLATION')
+        subtype='TRANSLATION',
+        precision=4,
+        update=update_callback)
         
     v: bpy.props.FloatVectorProperty(
         name="Velocity",
         description="Set the velocity of the object",
-        subtype='VELOCITY')
+        subtype='VELOCITY',
+        precision=4,
+        update=update_callback)
 
 classes = (
     ProjectileObjectProperties,
