@@ -1,6 +1,6 @@
 """
 Projectile
-Copyright (C) 2016 Nathan Craddock
+Copyright (C) 2018 Nathan Craddock
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,514 +19,430 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 bl_info = {
     "name": "Projectile",
     "author": "Nathan Craddock",
-    "version": (1, 1),
-    "blender": (2, 79, 0),
-    "location": "Object Mode > Tool Shelf > Physics Tab",
+    "version": (1, 0),
+    "blender": (2, 80, 0),
+    "location": "Sidebar in 3D View",
     "description": "Set initial velocities for rigid body physics",
     "tracker_url": "",
-    "category": "Object"
+    "category": "Physics"
 }
 
-import bpy
-from mathutils import Vector
-import math
-import bpy_extras
+# It might be cool to have a one-time handler for autoplayback
 
-# Set keyframes
-def set_keyframes(o):
-    o.keyframe_insert('location')
-    o.keyframe_insert('rotation_euler')
-    
+import bpy
+from bpy.types import Header, Menu, Panel
+import gpu
+from gpu_extras.batch import batch_for_shader
+import mathutils
+
+import math
+
+
 def set_quality(self, context):
     frame_rate = context.scene.render.fps
     q = context.scene.projectile_settings.quality
     if q == 'low':
-        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 2
+        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 4
     elif q == 'medium':
         bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 10
     elif q == 'high':
-        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 20  
+        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 20
 
 
-class ProjectileAddObject(bpy.types.Operator):
+# Returns distance between two points in space
+def distance_between_points(origin, destination):
+    return math.sqrt(math.pow(destination.x - origin.x, 2) + math.pow(destination.y - origin.y, 2) + math.pow(destination.z - origin.z, 2))
+
+
+# Raycast from origin to destination
+# Defaults to (nearly) infinite distance
+def raycast(origin, destination, distance=1.70141e+38):
+    direction = (destination - origin).normalized()
+    view_layer = bpy.context.view_layer
+
+    cast = bpy.context.scene.ray_cast(view_layer, origin, direction, distance=distance)
+    return cast
+
+
+# Kinematic Equation to find displacement over time
+def kinematic_displacement(initial, velocity, time):
+    frame_rate = bpy.context.scene.render.fps
+    gravity = bpy.context.scene.gravity
+
+    dt = (time * 1.0) / frame_rate
+    ds = mathutils.Vector((0.0, 0.0, 0.0))
+
+    ds.x = initial.x + (velocity.x * dt) + (0.5 * gravity.x * math.pow(dt, 2))
+    ds.y = initial.y + (velocity.y * dt) + (0.5 * gravity.y * math.pow(dt, 2))
+    ds.z = initial.z + (velocity.z * dt) + (0.5 * gravity.z * math.pow(dt, 2))
+
+    return ds
+
+
+def calculate_trajectory(object):
+    # Generate coordinates
+    cast = []
+    coordinates = []
+    v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, 0)
+    coord = mathutils.Vector((v.x, v.y, v.z))
+    coordinates.append(coord)
+
+    for frame in range(1, bpy.context.scene.frame_end):
+        v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, frame)
+        coord = mathutils.Vector((v.x, v.y, v.z))
+
+        # Get distance between previous and current position
+        distance = distance_between_points(coordinates[-1], coord)
+
+        # Check if anything is in the way
+        cast = raycast(coordinates[-1], coord, distance)
+
+        # If so, set that position as final position (avoid self intersections)
+        if cast[0] and cast[4] is not object:
+            coordinates.append(cast[1])
+            break
+
+        coordinates.append(coord)
+        coordinates.append(coord)
+
+    if not cast[0]:
+        v = kinematic_displacement(object.projectile_props.s, object.projectile_props.v, bpy.context.scene.frame_end)
+        coord = mathutils.Vector((v.x, v.y, v.z))
+        coordinates.append(coord)
+
+    return coordinates
+
+
+# Functions for draw handlers
+def draw_trajectory():
+    object = bpy.context.object
+    draw = bpy.context.scene.projectile_settings.draw_trajectories
+
+    coordinates = calculate_trajectory(object)
+
+    shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+    batch = batch_for_shader(shader, 'LINES', {"pos" : coordinates})
+
+    shader.bind()
+    shader.uniform_float("color", (1, 1, 1, 1))
+
+    # Only draw if
+    if draw and object.select_get() and object.projectile:
+        batch.draw(shader)
+
+
+class PHYSICS_OT_projectile_add(bpy.types.Operator):
     bl_idname = "rigidbody.projectile_add_object"
     bl_label = "Add Object"
-    bl_description = "Add object to Projectile"
-    
+    bl_description = "Set selected object as a projectile"
+
     @classmethod
     def poll(cls, context):
-        if context.active_object:
-            return context.active_object.type == 'MESH'
-        
-    def execute(self, context):
-        if 'projectile_objects' not in bpy.data.groups:
-            bpy.ops.group.create(name='projectile_objects')
-        
-        bpy.ops.object.group_link(group='projectile_objects')
-        
-        # Make sure it is a rigid body
-        if context.active_object.rigid_body is None:
-            bpy.ops.rigidbody.objects_add()
-            
-        # Now initialize the location and rotation
-        context.active_object.projectile_props.s = context.active_object.location
-        context.active_object.projectile_props.r = context.active_object.rotation_euler
-        
-        return {'FINISHED'}
-        
+        if context.object:
+            return context.object.type == 'MESH'
 
-class ProjectileRemoveObject(bpy.types.Operator):
+    def execute(self, context):
+        for object in context.selected_objects:
+            if not object.projectile:
+                context.view_layer.objects.active = object
+                # Make sure it is a rigid body
+                if object.rigid_body is None:
+                    bpy.ops.rigidbody.object_add()
+
+                # Set as a projectile
+                object.projectile = True
+
+                # Now initialize the location
+                object.projectile_props.s = object.location
+
+        return {'FINISHED'}
+
+
+class PHYSICS_OT_projectile_remove(bpy.types.Operator):
     bl_idname = "rigidbody.projectile_remove_object"
     bl_label = "Remove Object"
-    bl_description = "Remove object from Projectile"
-    
+    bl_description = "Remove object from as a projectile"
+
     @classmethod
     def poll(cls, context):
-        if context.active_object:
-            return context.active_object in list(bpy.data.groups['projectile_objects'].objects)
-        
+        if context.object:
+            return context.object.projectile
+
     def execute(self, context):
-        bpy.ops.group.objects_remove(group="projectile_objects")
-        
-        # Remove animation data
-        context.active_object.animation_data_clear()
-        
-        # HACKY! :D
-        # Move frame forward, then back to update
-        bpy.context.scene.frame_current += 1
-        bpy.context.scene.frame_current -= 1
-        
-        # Make sure it animates...
-        context.active_object.rigid_body.kinematic = False
-        
+        for object in context.selected_objects:
+            if object.projectile:
+                context.view_layer.objects.active = object
+
+                # Remove animation data
+                context.active_object.animation_data_clear()
+
+                bpy.ops.rigidbody.object_remove()
+
+                context.object.projectile = False
+
+                # HACKY! :D
+                # Move frame forward, then back to update
+                bpy.context.scene.frame_current += 1
+                bpy.context.scene.frame_current -= 1
+
         return {'FINISHED'}
 
 
-class ProjectileSetLocation(bpy.types.Operator):
-    bl_idname = "rigidbody.projectile_set_location"
-    bl_label = "Use Current"  
-    bl_description = "Use the current location"
-    
+class PHYSICS_OT_projectile_apply_transforms(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_apply_transforms"
+    bl_label = "Apply Transforms"
+    bl_description = "Set initial position and rotation to current transforms"
+
     @classmethod
     def poll(cls, context):
-        if context.active_object:
-            return context.active_object.type == 'MESH'
-    
+        if context.object.projectile:
+            return context.object.type == 'MESH'
+
     def execute(self, context):
-        context.active_object.projectile_props.s = context.active_object.location
-        
-        # Also apply the operator to all other projectile objects that are selected
-        for o in bpy.context.scene.objects:
-            if o.select and o in list(bpy.data.groups['projectile_objects'].objects):
+
+        # Apply transforms to all selected projectile objects
+        for o in bpy.context.selected_objects:
+            if o.projectile:
                 o.projectile_props.s = o.location
-        
-        return {'FINISHED'}
-    
-class ProjectileSetRotation(bpy.types.Operator):
-    bl_idname = "rigidbody.projectile_set_rotation"
-    bl_label = "Use Current"  
-    bl_description = "Use the current rotation"
-    
-    @classmethod
-    def poll(cls, context):
-        if context.active_object:
-            return context.active_object.type == 'MESH'
-    
-    def execute(self, context):
-        context.active_object.projectile_props.r = context.active_object.rotation_euler
-        
-        # Also apply the operator to all other projectile objects that are selected
-        for o in bpy.context.scene.objects:
-            if o.select and o in list(bpy.data.groups['projectile_objects'].objects):
                 o.projectile_props.r = o.rotation_euler
-                
-        return {'FINISHED'}
-    
 
-class ProjectileAddEmpty(bpy.types.Operator):
-    bl_idname = "rigidbody.projectile_add_empty"
-    bl_label = "Use Empty"
-    bl_description = "Create an empty to be used as the goal object"
-    
-    def execute(self, context):
-        projectile_object = context.active_object
-        bpy.ops.object.empty_add()
-        empty = context.active_object
-        
-        empty.name = "projectile_goal_" + projectile_object.name
-        projectile_object.projectile_props.obj = empty.name
-        
-        empty.location = projectile_object.location
-        
         return {'FINISHED'}
 
-    
-class ProjectileInitializeVelocity(bpy.types.Operator):
-    bl_idname = "rigidbody.projectile_initialize_velocity"
-    bl_label = "Initialize Velocity"
-    bl_description = "Apply settings to the selected rigidbody"
-    
+
+# TODO: Rename?
+class PHYSICS_OT_projectile_launch(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_launch"
+    bl_label = "Launch!"
+    bl_description = "Launch the selected object!"
+
     @classmethod
     def poll(cls, context):
-        if context.active_object:
-            return context.active_object.type == 'MESH'
+        if context.object:
+            return context.object.type == 'MESH'
 
     def execute(self, context):
-        for o in bpy.context.scene.objects:
-            if o.select and o in list(bpy.data.groups['projectile_objects'].objects):
-                self.initialize_velocity(context, o)
-            
-        return {'FINISHED'}
-        
-    def initialize_velocity(self, context, o):
-        object = o
-        props = object.projectile_props
-        frame_rate = bpy.context.scene.render.fps
-
-        # Make sure it is a rigid body
-        if object.rigid_body is None:
-            bpy.ops.rigidbody.objects_add()
-        
-        # Animate it!
+        object = context.object
+        properties = object.projectile_props
+        settings = bpy.context.scene.projectile_settings
         object.animation_data_clear()
-        
-        if bpy.context.scene.frame_start > props.start_frame:
-            props.start_frame = bpy.context.scene.frame_start
-        
-        bpy.context.scene.frame_current = props.start_frame
-        
-        displacement_x = props.v.x / frame_rate
-        displacement_y = props.v.y / frame_rate
-        displacement_z = props.v.z / frame_rate
-        
-        if props.angular_rot:
-            rdisplacement_x = props.av_true.x / frame_rate
-            rdisplacement_y = props.av_true.y / frame_rate
-            rdisplacement_z = props.av_true.z / frame_rate
-        else:
-            rdisplacement_x = props.av.x / frame_rate
-            rdisplacement_y = props.av.y / frame_rate
-            rdisplacement_z = props.av.z / frame_rate
-        
-        new_loc = Vector((props.s.x + displacement_x, props.s.y + displacement_y, props.s.z + displacement_z))
-        new_rot = Vector((props.r.x + rdisplacement_x, props.r.y + rdisplacement_y, props.r.z + rdisplacement_z))
-        
+
+        # Set start frame
+        if bpy.context.scene.frame_start > properties.start_frame:
+            properties.start_frame = bpy.context.scene.frame_start
+
+        displacement = kinematic_displacement(properties.s, properties.v, 2)
+
+        bpy.context.scene.frame_current = properties.start_frame
         # Set start keyframe
-        object.location = props.s
-        object.rotation_euler = props.r
-        set_keyframes(object)
-        
-        bpy.context.scene.frame_current += 1
-        
+        object.location = properties.s
+        object.keyframe_insert('location')
+
+        bpy.context.scene.frame_current += 2
+
         # Set end keyframe
-        object.location = new_loc
-        object.rotation_euler = new_rot
-        set_keyframes(object)
-        
+        object.location = displacement
+        object.keyframe_insert('location')
+
         # Set animated checkbox
         object.rigid_body.kinematic = True
         object.keyframe_insert('rigid_body.kinematic')
-        
+
         bpy.context.scene.frame_current += 1
-        
-        # Set unanimated checkbox
-        object.rigid_body.kinematic = False
-        object.keyframe_insert('rigid_body.kinematic')
-        
-        bpy.context.scene.frame_current = 0
-        
-        settings = context.scene.projectile_settings
-        
-        #if settings.auto_play and not bpy.context.screen.is_animation_playing:
-        #    bpy.ops.screen.animation_play()
 
-    
-class ProjectileSetGoal(bpy.types.Operator):
-    bl_idname = "rigidbody.projectile_set_goal"
-    bl_label = "Set Goal"
-    bl_description = "Apply settings to the selected rigidbody"
-    
-    @classmethod
-    def poll(cls, context):
-        if context.active_object:
-            return context.active_object.type == 'MESH'
-
-    def execute(self, context):
-        object = bpy.context.active_object
-        props = object.projectile_props
-        frame_rate = bpy.context.scene.render.fps
-        empty = bpy.data.objects[props.obj]
-
-        # Make sure it is a rigid body
-        if object.rigid_body is None:
-            bpy.ops.rigidbody.objects_add()
-        
-        # Animate it!
-        object.animation_data_clear()
-        
-        if bpy.context.scene.frame_start > props.start_frame:
-            props.start_frame = bpy.context.scene.frame_start
-        
-        bpy.context.scene.frame_current = props.start_frame
-        
-        # Calculate the end frame
-        dx = props.s.x - empty.location.x
-        dy = props.s.y - empty.location.y
-        dz = props.s.z - empty.location.z
-        
-        distance = math.sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))
-        
-        if props.gv != 0:
-            sec = distance / props.gv
-        else:
-            sec = 0
-            
-        frames = sec * frame_rate
-        
-        # First keyframe
-        object.location = props.s
-        object.rotation_euler = props.r
-        set_keyframes(object)      
-        
-        # Second Keyframe
-        bpy.context.scene.frame_current += frames
-        object.location = empty.location
-        object.rotation_euler = empty.rotation_euler
-        set_keyframes(object)
-        
-        # Set animated checkbox
-        object.rigid_body.kinematic = True
-        object.keyframe_insert('rigid_body.kinematic')
-        
-        bpy.context.scene.frame_current += 1
-        
         # Set unanimated checkbox
         object.rigid_body.kinematic = False
         object.keyframe_insert('rigid_body.kinematic')
 
-        # Finally, set the animation curve to vector for constant motion
-        bpy.context.area.type = 'GRAPH_EDITOR'
-        bpy.ops.graph.select_all_toggle()
-        bpy.ops.graph.select_all_toggle()
-        bpy.ops.graph.interpolation_type(type='LINEAR')
-        bpy.context.area.type = 'VIEW_3D'
-        
         bpy.context.scene.frame_current = 0
-        
-        settings = context.scene.projectile_settings
-        
-        #if settings.auto_play and not bpy.context.screen.is_animation_playing:
-        #    bpy.ops.screen.animation_play()
-            
+
+        if settings.auto_play and not bpy.context.screen.is_animation_playing:
+            bpy.ops.screen.animation_play()
+
         return {'FINISHED'}
-    
 
-class ProjectileExecute(bpy.types.Operator):
-    bl_idname = "rigidbody.projectile_execute"
-    bl_label = "Update All"
-    bl_description = "Apply all changes to each projectile object"
-    
-    @classmethod
-    def poll(cls, context):
-        if 'projectile_objects' in bpy.data.groups:
-            if list(bpy.data.groups['projectile_objects'].objects):
-               return True 
 
-    def execute(self, context):
-        selected = context.active_object
-    
-        for o in bpy.data.groups['projectile_objects'].objects:
-            bpy.ops.object.select_all(action='DESELECT')
+# A function to initialize the velocity every time a UI value is updated
+def update_callback(self, context):
+    if context.scene.projectile_settings.auto_update:
+        bpy.ops.rigidbody.projectile_launch()
+    return None
 
-            context.scene.objects.active = o
-            o.select = True
-            
-            if o.projectile_props.mode == 'initv':
-                bpy.ops.rigidbody.projectile_initialize_velocity()
-            elif o.projectile_props.mode == 'goal':
-                bpy.ops.rigidbody.projectile_set_goal()
-                
-            settings = context.scene.projectile_settings
-            if settings.auto_play and not bpy.context.screen.is_animation_playing:
-                bpy.ops.screen.animation_play()
-        
-        bpy.ops.object.select_all(action='DESELECT')
-        context.scene.objects.active = selected
-        selected.select = True
-        
-        return {'FINISHED'}
-    
-class ProjectilePanel(bpy.types.Panel):
+
+# TODO: Decide where to best place these settings (maybe two panels?) Quick settings in sidebar
+# And detailed settings in physics tab
+class PHYSICS_PT_projectile(Panel):
     bl_label = "Projectile"
-    bl_idname = "projectile_panel"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
-    bl_context = "objectmode"
-    bl_category = "Physics"
+    bl_category = "View"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
 
     def draw(self, context):
         layout = self.layout
+        layout.use_property_split = True
+        settings = context.scene.projectile_settings
 
-        row = layout.row(align=True)        
-        
-        # If the group exists and has objects
-        if 'projectile_objects' in bpy.data.groups:
-            if context.active_object and context.active_object in list(bpy.data.groups['projectile_objects'].objects):
-                props = context.object.projectile_props
-                o = context.active_object.projectile_props
-                
-                row.operator('rigidbody.projectile_remove_object', icon='X')
-                row = layout.row()
-                row.prop(o, 'mode', expand=True)
-                
-                if o.mode == "initv":
-                    row = layout.row()
-                    column = row.column(align=True)
-                    column.prop(o, 's')
-                    column.operator("rigidbody.projectile_set_location", icon='MAN_TRANS')
-                    column.separator()
-                    column.prop(o, 'v')
-                    
-                    column = row.column(align=True)
-                    column.prop(o, 'r')
-                    column.operator("rigidbody.projectile_set_rotation", icon='MAN_ROT')
-                    column.separator()
-                    if context.active_object.projectile_props.angular_rot:
-                        column.prop(o, 'av_true')
-                    else:
-                        column.prop(o, 'av')
-                    column.prop(o, 'angular_rot')
-                    
-                    layout.row().separator()
-                    
-                    row = layout.row()
-                    row.prop(o, 'start_frame')                    
-                    layout.row().operator("rigidbody.projectile_initialize_velocity", icon='MOD_PHYSICS')
-                
-                elif o.mode == "goal":
-                    row = layout.row()
-                    column = row.column(align=True)
-                    column.prop(o, 's')
-                    column.operator("rigidbody.projectile_set_location", icon='MAN_TRANS')
-                    
-                    column = row.column(align=True)
-                    column.prop(o, 'r')
-                    column.operator("rigidbody.projectile_set_rotation", icon='MAN_ROT')
-                    
-                    layout.row().separator()
-                    
-                    row = layout.row(align=True)
-                    # Goal Settings
-                    row.prop_search(o, 'obj', context.scene, 'objects')
-                    row.operator("rigidbody.projectile_add_empty", icon='EMPTY_DATA')
-                    
-                    row = layout.row()
-                    row.prop(o, 'gv')
-                    layout.separator()
-                    row = layout.row()
-                    row.prop(o, 'start_frame')                    
-                    layout.row().operator("rigidbody.projectile_set_goal", icon='MOD_PHYSICS')
-                    
+        ob = context.object
+        if (ob and ob.projectile):
+            row = layout.row()
+            if(len([object for object in context.selected_objects if object.projectile])) > 1:
+                row.operator('rigidbody.projectile_remove_object', text="Remove Objects")
             else:
-                row.operator('rigidbody.projectile_add_object', icon='ZOOMIN')
-            
-            # Addon settings
-            settings = context.scene.projectile_settings
-            
-            layout.separator()
-            box = layout.box()
-            row = box.row()
-            row.label(text="Quality:")
-            row.prop(settings, 'quality', expand=True)
-            row = box.row()
-            #row.alignment = 'CENTER'
-            row.prop(settings, 'auto_play')
-            row = box.row()
-            row.operator('rigidbody.projectile_execute', icon='MOD_PHYSICS')
-            
+                row.operator('rigidbody.projectile_remove_object')
+
+
+            row = layout.row()
+            col = row.column()
+            col.operator('rigidbody.projectile_apply_transforms', text="", icon='FILE_TICK')
+            col = row.column()
+            col.prop(ob.projectile_props, 's')
+
+            row = layout.row()
+            row.prop(ob.projectile_props, 'v')
+
+            if not settings.auto_update:
+                row = layout.row()
+                row.operator('rigidbody.projectile_launch')
+
         else:
-            row.operator('rigidbody.projectile_add_object', icon='ZOOMIN')
+            row = layout.row()
+            if len(context.selected_objects) > 1:
+                row.operator('rigidbody.projectile_add_object', text="Add Objects")
+            else:
+                row.operator('rigidbody.projectile_add_object')
 
 
-# Addon Properties
+class PHYSICS_PT_projectile_settings(Panel):
+    bl_label = "Projectile Settings"
+    bl_parent_id = "PHYSICS_PT_projectile"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        settings = context.scene.projectile_settings
+
+        row = layout.row()
+        row.prop(settings, "quality", expand=True)
+
+        row = layout.row()
+        row.prop(settings, "auto_update")
+
+        row = layout.row()
+        row.prop(settings, "auto_play")
+
+        row = layout.row()
+        row.prop(settings, 'draw_trajectories')
+
+
 class ProjectileObjectProperties(bpy.types.PropertyGroup):
-    mode = bpy.props.EnumProperty(
+    mode: bpy.props.EnumProperty(
         name="Mode",
         items=[("initv", "Initial Velocity", "Set initial velocity"),
                ("goal",  "Goal",             "Set the goal")],
-        default='initv')
-    start_frame = bpy.props.IntProperty(
+        default='initv'
+    )
+
+    start_frame: bpy.props.IntProperty(
         name="Start Frame",
         description="Frame to start velocity initialization on",
-        default=1)
-        
-    s = bpy.props.FloatVectorProperty(
-        name="Location",
+        default=1
+    )
+
+    s: bpy.props.FloatVectorProperty(
+        name="Initial Location",
         description="Initial position for the object",
-        subtype='TRANSLATION')
-    
+        subtype='TRANSLATION',
+        precision=4,
+        options={'HIDDEN'},
+        update=update_callback
+    )
+
     r = bpy.props.FloatVectorProperty(
         name="Rotation",
         description="Initial rotation for the object",
-        subtype='EULER')
-        
-    v = bpy.props.FloatVectorProperty(
+        precision=4,
+        options={'HIDDEN'},
+        subtype='EULER',
+        update=update_callback
+    )
+
+    v: bpy.props.FloatVectorProperty(
         name="Velocity",
         description="Set the velocity of the object",
-        subtype='VELOCITY')
-        
-    av = bpy.props.FloatVectorProperty(
-        name="Angular Velocity",
-        description="Set the angular velocity of the object (in DISTANCE/second)",
-        subtype='VELOCITY')
-        
-    av_true = bpy.props.FloatVectorProperty(
-        name="Angular Velocity",
-        description="Set the angular velocity of the object (in ROTATION/second)",
-        subtype='EULER')
-        
-    obj = bpy.props.StringProperty(
-        name="Goal",
-        description="What object should be the goal?")
-        
-    # Goal velocity? :)
-    gv = bpy.props.FloatProperty(
-        name="Vel",
-        description="Set the velocity of the object",
-        unit='VELOCITY')
-        
-    # Option for changing types of angular velocity
-    angular_rot = bpy.props.BoolProperty(
-        name="Use Rotational Units",
-        description="Use degrees or radians for angular velocity instead of metric or imperial units",
-        default=False)
+        subtype='VELOCITY',
+        precision=4,
+        options={'HIDDEN'},
+        update=update_callback
+    )
+
 
 class ProjectileSettings(bpy.types.PropertyGroup):
-    quality = bpy.props.EnumProperty(
+    draw_trajectories: bpy.props.BoolProperty(
+        name="Draw Trajectories",
+        description="Draw projectile trajectories in the 3D view",
+        options={'HIDDEN'},
+        default=True
+    )
+
+    auto_update: bpy.props.BoolProperty(
+        name="Auto Update",
+        description="Update the rigidbody simulation after property changes",
+        options={'HIDDEN'},
+        default=True
+    )
+
+    auto_play: bpy.props.BoolProperty(
+        name="Auto Play",
+        description="Start animation playback after any changes",
+        options={'HIDDEN'},
+        default=False
+    )
+
+    quality: bpy.props.EnumProperty(
         name="Quality",
         items=[("low", "Low", "Use low quality settings"),
                ("medium", "Medium", "Use medium quality settings"),
                ("high", "High", "Use high quality settings")],
         default='medium',
+        options={'HIDDEN'},
         update=set_quality)
-        
-    auto_play = bpy.props.BoolProperty(
-        name="Auto Play",
-        description="Automatically start the animation after running",
-        default=False)
+
+
+classes = (
+    ProjectileObjectProperties,
+    ProjectileSettings,
+    PHYSICS_PT_projectile,
+    PHYSICS_PT_projectile_settings,
+    PHYSICS_OT_projectile_add,
+    PHYSICS_OT_projectile_remove,
+    PHYSICS_OT_projectile_launch,
+    PHYSICS_OT_projectile_apply_transforms,
+)
+
 
 def register():
-    bpy.utils.register_module(__name__)
-    
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)
+
     bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ProjectileObjectProperties)
     bpy.types.Scene.projectile_settings = bpy.props.PointerProperty(type=ProjectileSettings)
+    bpy.types.Object.projectile = bpy.props.BoolProperty(name="Projectile")
+
+    bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
 
 
 def unregister():
-    bpy.utils.unregister_module(__name__)
-    
+    from bpy.utils import unregister_class
+    for cls in reversed(classes):
+        unregister_class(cls)
+
     del bpy.types.Object.projectile_props
     del bpy.types.Scene.projectile_settings
+    del bpy.types.Object.projectile
+
+    bpy.types.SpaceView3D.draw_handler_remove(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
 
 
 if __name__ == "__main__":
