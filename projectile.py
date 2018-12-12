@@ -37,9 +37,11 @@ import mathutils
 
 import math
 
+
 # Returns distance between two points in space
 def distance_between_points(origin, destination):
     return math.sqrt(math.pow(destination.x - origin.x, 2) + math.pow(destination.y - origin.y, 2) + math.pow(destination.z - origin.z, 2))
+
 
 # Raycast from origin to destination
 # Defaults to (nearly) infinite distance
@@ -49,6 +51,7 @@ def raycast(origin, destination, distance=1.70141e+38):
 
     cast = bpy.context.scene.ray_cast(view_layer, origin, direction, distance=distance)
     return cast
+
 
 # Kinematic Equation to find displacement over time
 def kinematic_displacement(initial, velocity, time):
@@ -63,6 +66,7 @@ def kinematic_displacement(initial, velocity, time):
     ds.z = initial.z + (velocity.z * dt) + (0.5 * gravity.z * math.pow(dt, 2))
 
     return ds
+
 
 def calculate_trajectory(object):
     # Generate coordinates
@@ -97,6 +101,7 @@ def calculate_trajectory(object):
 
     return coordinates
 
+
 # Functions for draw handlers
 def draw_trajectory():
     object = bpy.context.object
@@ -122,19 +127,22 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        if context.active_object:
-            return context.active_object.type == 'MESH'
+        if context.object:
+            return context.object.type == 'MESH'
 
     def execute(self, context):
-        # Make sure it is a rigid body
-        if context.object.rigid_body is None:
-            bpy.ops.rigidbody.objects_add()
+        for object in context.selected_objects:
+            if not object.projectile:
+                context.view_layer.objects.active = object
+                # Make sure it is a rigid body
+                if object.rigid_body is None:
+                    bpy.ops.rigidbody.object_add()
 
-        # Set as a projectile
-        context.object.projectile = True
+                # Set as a projectile
+                object.projectile = True
 
-        # Now initialize the location
-        context.active_object.projectile_props.s = context.active_object.location
+                # Now initialize the location
+                object.projectile_props.s = object.location
 
         return {'FINISHED'}
 
@@ -150,17 +158,42 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
             return context.object.projectile
 
     def execute(self, context):
-        # Remove animation data
-        context.active_object.animation_data_clear()
+        for object in context.selected_objects:
+            if object.projectile:
+                context.view_layer.objects.active = object
 
-        bpy.ops.rigidbody.objects_remove()
+                # Remove animation data
+                context.active_object.animation_data_clear()
 
-        context.object.projectile = False
+                bpy.ops.rigidbody.object_remove()
 
-        # HACKY! :D
-        # Move frame forward, then back to update
-        bpy.context.scene.frame_current += 1
-        bpy.context.scene.frame_current -= 1
+                context.object.projectile = False
+
+                # HACKY! :D
+                # Move frame forward, then back to update
+                bpy.context.scene.frame_current += 1
+                bpy.context.scene.frame_current -= 1
+
+        return {'FINISHED'}
+
+
+class PHYSICS_OT_projectile_set_location(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_set_location"
+    bl_label = "Use Current"
+    bl_description = "Use the current location"
+
+    @classmethod
+    def poll(cls, context):
+        if context.object:
+            return context.object.type == 'MESH'
+
+    def execute(self, context):
+        context.active_object.projectile_props.s = context.object.location
+
+        # Apply the operator to all selected projectile objects
+        for o in bpy.context.selected_objects:
+            if o.projectile:
+                o.projectile_props.s = o.location
 
         return {'FINISHED'}
 
@@ -219,7 +252,8 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
 
 # A function to initialize the velocity every time a UI value is updated
 def update_callback(self, context):
-    bpy.ops.rigidbody.projectile_launch()
+    if context.scene.projectile_settings.auto_update:
+        bpy.ops.rigidbody.projectile_launch()
     return None
 
 
@@ -234,25 +268,37 @@ class PHYSICS_PT_projectile(Panel):
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
+        settings = context.scene.projectile_settings
 
         ob = context.object
         if (ob and ob.projectile):
             row = layout.row()
-            row.operator('rigidbody.projectile_remove_object')
+            if(len([object for object in context.selected_objects if object.projectile])) > 1:
+                row.operator('rigidbody.projectile_remove_object', text="Remove Objects")
+            else:
+                row.operator('rigidbody.projectile_remove_object')
+
 
             row = layout.row()
-            row.prop(ob.projectile_props, 's')
+            col = row.column()
+            col.operator('rigidbody.projectile_set_location', text="", icon='FILE_TICK')
+            col = row.column()
+            col.prop(ob.projectile_props, 's')
 
             row = layout.row()
             row.prop(ob.projectile_props, 'v')
 
-            # Is this necessary anymore?
-            # row = layout.row()
-            # row.operator('rigidbody.projectile_launch')
+            if not settings.auto_update:
+                row = layout.row()
+                row.operator('rigidbody.projectile_launch')
 
         else:
             row = layout.row()
-            row.operator('rigidbody.projectile_add_object')
+            if len(context.selected_objects) > 1:
+                row.operator('rigidbody.projectile_add_object', text="Add Objects")
+            else:
+                row.operator('rigidbody.projectile_add_object')
+
 
 
 class PHYSICS_PT_projectile_settings(Panel):
@@ -265,6 +311,9 @@ class PHYSICS_PT_projectile_settings(Panel):
         layout = self.layout
         layout.use_property_split = True
         settings = context.scene.projectile_settings
+
+        row = layout.row()
+        row.prop(settings, "auto_update")
 
         row = layout.row()
         row.prop(settings, "auto_play")
@@ -305,16 +354,25 @@ class ProjectileObjectProperties(bpy.types.PropertyGroup):
 
 class ProjectileSettings(bpy.types.PropertyGroup):
     draw_trajectories: bpy.props.BoolProperty(
-    name="Draw Trajectories",
-    description="Draw projectile trajectories in the 3D view",
-    options={'HIDDEN'},
-    default=True)
+        name="Draw Trajectories",
+        description="Draw projectile trajectories in the 3D view",
+        options={'HIDDEN'},
+        default=True
+    )
+
+    auto_update: bpy.props.BoolProperty(
+        name="Auto Update",
+        description="Automatically update the rigidbody simulation after property changes",
+        options={'HIDDEN'},
+        default=True
+    )
 
     auto_play: bpy.props.BoolProperty(
         name="Auto Play",
         description="Automatically start the animation after any changes",
         options={'HIDDEN'},
-        default=False)
+        default=False
+    )
     """
     quality: bpy.props.EnumProperty(
         name="Quality",
@@ -334,6 +392,7 @@ classes = (
     PHYSICS_OT_projectile_add,
     PHYSICS_OT_projectile_remove,
     PHYSICS_OT_projectile_launch,
+    PHYSICS_OT_projectile_set_location,
 )
 
 
