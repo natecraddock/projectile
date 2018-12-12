@@ -8,8 +8,6 @@
 - **Object Settings:** Each object has its own settings tied to it, so don't worry about making a mistake because you can always go back and change something!
 - **Real-World Units:** Projectile will use the same units that are used in the .blend file, so you can use m/s or ft/s so you can truly know how fast your objects will be moving.
 
-![Projectile Trajectories](https://blenderartists.org/uploads/default/optimized/4X/f/f/7/ff707177780a7443a5ef3c18ffd43a99b654a499_1_690x454.gif)
-
 ## Usage
 - Click **Add Object** to set an object as a Projectile object. It will set it to be an active rigidbody object, and will set the **Initial Location** and **Initial Rotation** based on any transforms the object has.
 - Click **Remove Object** to remove an object from projectile calculations.
