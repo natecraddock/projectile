@@ -19,12 +19,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 bl_info = {
     "name": "Projectile",
     "author": "Nathan Craddock",
-    "version": (1, 1),
+    "version": (1, 0),
     "blender": (2, 80, 0),
-    "location": "",
+    "location": "Sidebar in 3D View",
     "description": "Set initial velocities for rigid body physics",
     "tracker_url": "",
-    "category": "Object"
+    "category": "Physics"
 }
 
 # It might be cool to have a one-time handler for autoplayback
@@ -36,6 +36,17 @@ from gpu_extras.batch import batch_for_shader
 import mathutils
 
 import math
+
+
+def set_quality(self, context):
+    frame_rate = context.scene.render.fps
+    q = context.scene.projectile_settings.quality
+    if q == 'low':
+        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 4
+    elif q == 'medium':
+        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 10
+    elif q == 'high':
+        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 20
 
 
 # Returns distance between two points in space
@@ -177,28 +188,28 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class PHYSICS_OT_projectile_set_location(bpy.types.Operator):
-    bl_idname = "rigidbody.projectile_set_location"
-    bl_label = "Use Current"
-    bl_description = "Use the current location"
+class PHYSICS_OT_projectile_apply_transforms(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_apply_transforms"
+    bl_label = "Apply Transforms"
+    bl_description = "Set initial position and rotation to current transforms"
 
     @classmethod
     def poll(cls, context):
-        if context.object:
+        if context.object.projectile:
             return context.object.type == 'MESH'
 
     def execute(self, context):
-        context.active_object.projectile_props.s = context.object.location
 
-        # Apply the operator to all selected projectile objects
+        # Apply transforms to all selected projectile objects
         for o in bpy.context.selected_objects:
             if o.projectile:
                 o.projectile_props.s = o.location
+                o.projectile_props.r = o.rotation_euler
 
         return {'FINISHED'}
 
 
-# TODO: Rename
+# TODO: Rename?
 class PHYSICS_OT_projectile_launch(bpy.types.Operator):
     bl_idname = "rigidbody.projectile_launch"
     bl_label = "Launch!"
@@ -281,7 +292,7 @@ class PHYSICS_PT_projectile(Panel):
 
             row = layout.row()
             col = row.column()
-            col.operator('rigidbody.projectile_set_location', text="", icon='FILE_TICK')
+            col.operator('rigidbody.projectile_apply_transforms', text="", icon='FILE_TICK')
             col = row.column()
             col.prop(ob.projectile_props, 's')
 
@@ -300,7 +311,6 @@ class PHYSICS_PT_projectile(Panel):
                 row.operator('rigidbody.projectile_add_object')
 
 
-
 class PHYSICS_PT_projectile_settings(Panel):
     bl_label = "Projectile Settings"
     bl_parent_id = "PHYSICS_PT_projectile"
@@ -313,6 +323,9 @@ class PHYSICS_PT_projectile_settings(Panel):
         settings = context.scene.projectile_settings
 
         row = layout.row()
+        row.prop(settings, "quality", expand=True)
+
+        row = layout.row()
         row.prop(settings, "auto_update")
 
         row = layout.row()
@@ -322,18 +335,19 @@ class PHYSICS_PT_projectile_settings(Panel):
         row.prop(settings, 'draw_trajectories')
 
 
-
 class ProjectileObjectProperties(bpy.types.PropertyGroup):
     mode: bpy.props.EnumProperty(
         name="Mode",
         items=[("initv", "Initial Velocity", "Set initial velocity"),
                ("goal",  "Goal",             "Set the goal")],
-        default='initv')
+        default='initv'
+    )
 
     start_frame: bpy.props.IntProperty(
         name="Start Frame",
         description="Frame to start velocity initialization on",
-        default=1)
+        default=1
+    )
 
     s: bpy.props.FloatVectorProperty(
         name="Initial Location",
@@ -341,7 +355,17 @@ class ProjectileObjectProperties(bpy.types.PropertyGroup):
         subtype='TRANSLATION',
         precision=4,
         options={'HIDDEN'},
-        update=update_callback)
+        update=update_callback
+    )
+
+    r = bpy.props.FloatVectorProperty(
+        name="Rotation",
+        description="Initial rotation for the object",
+        precision=4,
+        options={'HIDDEN'},
+        subtype='EULER',
+        update=update_callback
+    )
 
     v: bpy.props.FloatVectorProperty(
         name="Velocity",
@@ -349,7 +373,8 @@ class ProjectileObjectProperties(bpy.types.PropertyGroup):
         subtype='VELOCITY',
         precision=4,
         options={'HIDDEN'},
-        update=update_callback)
+        update=update_callback
+    )
 
 
 class ProjectileSettings(bpy.types.PropertyGroup):
@@ -362,26 +387,26 @@ class ProjectileSettings(bpy.types.PropertyGroup):
 
     auto_update: bpy.props.BoolProperty(
         name="Auto Update",
-        description="Automatically update the rigidbody simulation after property changes",
+        description="Update the rigidbody simulation after property changes",
         options={'HIDDEN'},
         default=True
     )
 
     auto_play: bpy.props.BoolProperty(
         name="Auto Play",
-        description="Automatically start the animation after any changes",
+        description="Start animation playback after any changes",
         options={'HIDDEN'},
         default=False
     )
-    """
+
     quality: bpy.props.EnumProperty(
         name="Quality",
         items=[("low", "Low", "Use low quality settings"),
                ("medium", "Medium", "Use medium quality settings"),
                ("high", "High", "Use high quality settings")],
         default='medium',
+        options={'HIDDEN'},
         update=set_quality)
-    """
 
 
 classes = (
@@ -392,7 +417,7 @@ classes = (
     PHYSICS_OT_projectile_add,
     PHYSICS_OT_projectile_remove,
     PHYSICS_OT_projectile_launch,
-    PHYSICS_OT_projectile_set_location,
+    PHYSICS_OT_projectile_apply_transforms,
 )
 
 
