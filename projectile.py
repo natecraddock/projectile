@@ -30,7 +30,6 @@ bl_info = {
 # It might be cool to have a one-time handler for autoplayback
 
 import bpy
-from bpy.types import Header, Menu, Panel
 import gpu
 from gpu_extras.batch import batch_for_shader
 import mathutils
@@ -169,6 +168,9 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
                 # Now initialize the location
                 object.projectile_props.s = object.location
 
+                # Set start frame
+                object.start_frame = context.scene.frame_start
+
         return {'FINISHED'}
 
 
@@ -302,7 +304,7 @@ def update_callback(self, context):
 
 # TODO: Decide where to best place these settings (maybe two panels?) Quick settings in sidebar
 # And detailed settings in physics tab
-class PHYSICS_PT_projectile(Panel):
+class PHYSICS_PT_projectile(bpy.types.Panel):
     bl_label = "Projectile"
     bl_category = "View"
     bl_space_type = "VIEW_3D"
@@ -356,7 +358,7 @@ class PHYSICS_PT_projectile(Panel):
                 row.operator('rigidbody.projectile_add_object')
 
 
-class PHYSICS_PT_projectile_settings(Panel):
+class PHYSICS_PT_projectile_settings(bpy.types.Panel):
     bl_label = "Projectile Settings"
     bl_parent_id = "PHYSICS_PT_projectile"
     bl_space_type = "VIEW_3D"
@@ -489,15 +491,16 @@ def register():
     from bpy.utils import register_class
     for cls in classes:
         register_class(cls)
-
+    
+    bpy.types.Scene.projectile_draw_handler = bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
     bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ProjectileObjectProperties)
     bpy.types.Scene.projectile_settings = bpy.props.PointerProperty(type=ProjectileSettings)
     bpy.types.Object.projectile = bpy.props.BoolProperty(name="Projectile")
 
-    bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
-
 
 def unregister():
+    bpy.types.SpaceView3D.draw_handler_remove(bpy.types.Scene.projectile_draw_handler, 'WINDOW')
+
     from bpy.utils import unregister_class
     for cls in reversed(classes):
         unregister_class(cls)
