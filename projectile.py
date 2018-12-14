@@ -33,19 +33,24 @@ import bpy
 import gpu
 from gpu_extras.batch import batch_for_shader
 import mathutils
-
 import math
 
 
-def set_quality(self, context):
+def set_quality(context):
     frame_rate = context.scene.render.fps
-    q = context.scene.projectile_settings.quality
-    if q == 'low':
-        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 4
-    elif q == 'medium':
-        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 10
-    elif q == 'high':
-        bpy.context.scene.rigidbody_world.steps_per_second = frame_rate * 20
+    quality = context.scene.projectile_settings.quality
+    if quality == 'low':
+        context.scene.rigidbody_world.steps_per_second = frame_rate * 4
+    elif quality == 'medium':
+        context.scene.rigidbody_world.steps_per_second = frame_rate * 10
+    elif quality == 'high':
+        context.scene.rigidbody_world.steps_per_second = frame_rate * 20
+
+    context.scene.rigidbody_world.solver_iterations = 20
+
+
+def set_quality_callback(self, context):
+    set_quality(context)
 
 
 # Returns distance between two points in space
@@ -53,8 +58,7 @@ def distance_between_points(origin, destination):
     return math.sqrt(math.pow(destination.x - origin.x, 2) + math.pow(destination.y - origin.y, 2) + math.pow(destination.z - origin.z, 2))
 
 
-# Raycast from origin to destination
-# Defaults to (nearly) infinite distance
+# Raycast from origin to destination (Defaults to (nearly) infinite distance)
 def raycast(origin, destination, distance=1.70141e+38):
     direction = (destination - origin).normalized()
     view_layer = bpy.context.view_layer
@@ -169,7 +173,10 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
                 object.projectile_props.s = object.location
 
                 # Set start frame
-                object.start_frame = context.scene.frame_start
+                object.projectile_props.start_frame = context.scene.frame_start
+
+                # Make sure quality is set
+                set_quality(context)
 
         return {'FINISHED'}
 
@@ -215,12 +222,15 @@ class PHYSICS_OT_projectile_apply_transforms(bpy.types.Operator):
             return context.object.type == 'MESH'
 
     def execute(self, context):
-
         # Apply transforms to all selected projectile objects
-        for o in bpy.context.selected_objects:
-            if o.projectile:
-                o.projectile_props.s = o.location
-                o.projectile_props.r = o.rotation_euler
+        for object in bpy.context.selected_objects:
+            if object.projectile:
+                # Setting r and s with auto update changes the second setting
+                # Store for now
+                location = object.location.copy()
+                rotation = object.rotation_euler.copy()
+                object.projectile_props.s = location
+                object.projectile_props.r = rotation
 
         return {'FINISHED'}
 
@@ -246,10 +256,10 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
         if bpy.context.scene.frame_start > properties.start_frame:
             properties.start_frame = bpy.context.scene.frame_start
 
+        bpy.context.scene.frame_current = properties.start_frame
+
         displacement = kinematic_displacement(properties.s, properties.v, 2)
         displacement_rotation = kinematic_rotation(properties.r, properties.w, 2)
-
-        bpy.context.scene.frame_current = properties.start_frame
 
         '''
         # Hide object if necessary
@@ -324,23 +334,6 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
                 row.operator('rigidbody.projectile_remove_object')
 
             row = layout.row()
-            row.prop(ob.projectile_props, 's')
-            """
-            col = row.column()
-            col.operator('rigidbody.projectile_apply_transforms', text="", icon='FILE_TICK')
-            col = row.column()
-            col.prop(ob.projectile_props, 's')
-            """
-            row = layout.row()
-            row.prop(ob.projectile_props, 'r')
-
-            row = layout.row()
-            row.prop(ob.projectile_props, 'v')
-
-            row = layout.row()
-            row.prop(ob.projectile_props, 'w')
-
-            row = layout.row()
             row.prop(ob.projectile_props, 'start_frame')
 
             # row = layout.row()
@@ -358,11 +351,72 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
                 row.operator('rigidbody.projectile_add_object')
 
 
+class PHYSICS_PT_projectile_initial_settings(bpy.types.Panel):
+    bl_label = "Initial Settings"
+    bl_parent_id = "PHYSICS_PT_projectile"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(self, context):
+        if context.object.projectile:
+            return True
+        return False
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        object = context.object
+
+        row = layout.row()
+        row.prop(object.projectile_props, 's')
+
+        row = layout.row()
+        row.prop(object.projectile_props, 'r')
+
+        row = layout.row()
+        row.operator('rigidbody.projectile_apply_transforms')
+
+
+class PHYSICS_PT_projectile_velocity_settings(bpy.types.Panel):
+    bl_label = "Velocity Settings"
+    bl_parent_id = "PHYSICS_PT_projectile"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+
+    @classmethod
+    def poll(self, context):
+        if context.object.projectile:
+            return True
+        return False
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        object = context.object
+
+        row = layout.row()
+        row.prop(object.projectile_props, 'v')
+
+        row = layout.row()
+        row.prop(object.projectile_props, 'w')
+
+
 class PHYSICS_PT_projectile_settings(bpy.types.Panel):
     bl_label = "Projectile Settings"
     bl_parent_id = "PHYSICS_PT_projectile"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        for object in context.selected_objects:
+            if object.projectile:
+                return True
+
+        return False
 
     def draw(self, context):
         layout = self.layout
@@ -472,13 +526,15 @@ class ProjectileSettings(bpy.types.PropertyGroup):
                ("high", "High", "Use high quality settings")],
         default='medium',
         options={'HIDDEN'},
-        update=set_quality)
+        update=set_quality_callback)
 
 
 classes = (
     ProjectileObjectProperties,
     ProjectileSettings,
     PHYSICS_PT_projectile,
+    PHYSICS_PT_projectile_initial_settings,
+    PHYSICS_PT_projectile_velocity_settings,
     PHYSICS_PT_projectile_settings,
     PHYSICS_OT_projectile_add,
     PHYSICS_OT_projectile_remove,
@@ -491,7 +547,7 @@ def register():
     from bpy.utils import register_class
     for cls in classes:
         register_class(cls)
-    
+
     bpy.types.Scene.projectile_draw_handler = bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
     bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ProjectileObjectProperties)
     bpy.types.Scene.projectile_settings = bpy.props.PointerProperty(type=ProjectileSettings)
