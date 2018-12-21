@@ -1,6 +1,6 @@
 """
 Projectile
-Copyright (C) 2018 Nathan Craddock
+2018 Nathan Craddock
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,6 +34,18 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 import mathutils
 import math
+
+
+# Apply Transforms
+def apply_transforms(context):
+    for object in context.selected_objects:
+        if object.projectile:
+            # Setting r and s with auto update changes the second setting
+            # Store for now
+            location = object.location.copy()
+            rotation = object.rotation_euler.copy()
+            object.projectile_props.s = location
+            object.projectile_props.r = rotation
 
 
 def set_quality(context):
@@ -138,7 +150,7 @@ def draw_trajectory():
     coordinates = calculate_trajectory(object)
 
     shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
-    batch = batch_for_shader(shader, 'LINES', {"pos" : coordinates})
+    batch = batch_for_shader(shader, 'LINES', {"pos": coordinates})
 
     shader.bind()
     shader.uniform_float("color", (1, 1, 1, 1))
@@ -169,8 +181,8 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
                 # Set as a projectile
                 object.projectile = True
 
-                # Now initialize the location
-                object.projectile_props.s = object.location
+                # Now initialize the transforms
+                apply_transforms(context)
 
                 # Set start frame
                 object.projectile_props.start_frame = context.scene.frame_start
@@ -223,14 +235,7 @@ class PHYSICS_OT_projectile_apply_transforms(bpy.types.Operator):
 
     def execute(self, context):
         # Apply transforms to all selected projectile objects
-        for object in bpy.context.selected_objects:
-            if object.projectile:
-                # Setting r and s with auto update changes the second setting
-                # Store for now
-                location = object.location.copy()
-                rotation = object.rotation_euler.copy()
-                object.projectile_props.s = location
-                object.projectile_props.r = rotation
+        apply_transforms(context)
 
         return {'FINISHED'}
 
@@ -310,6 +315,15 @@ def update_callback(self, context):
     if context.scene.projectile_settings.auto_update:
         bpy.ops.rigidbody.projectile_launch()
     return None
+
+
+# To check when the depsgraph is updated
+def depsgraph_handler(scene):
+    depsgraph = bpy.context.depsgraph
+    for update in depsgraph.updates:
+        if isinstance(update.id, type(bpy.context.scene)):
+            if scene.projectile_settings.auto_update:
+                bpy.ops.rigidbody.projectile_launch()
 
 
 # TODO: Decide where to best place these settings (maybe two panels?) Quick settings in sidebar
@@ -412,7 +426,7 @@ class PHYSICS_PT_projectile_settings(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        for object in context.selected_objects:
+        for object in context.scene.objects:
             if object.projectile:
                 return True
 
@@ -437,13 +451,6 @@ class PHYSICS_PT_projectile_settings(bpy.types.Panel):
 
 
 class ProjectileObjectProperties(bpy.types.PropertyGroup):
-    mode: bpy.props.EnumProperty(
-        name="Mode",
-        items=[("initv", "Initial Velocity", "Set initial velocity"),
-               ("goal",  "Goal",             "Set the goal")],
-        default='initv'
-    )
-
     start_frame: bpy.props.IntProperty(
         name="Start Frame",
         description="Frame to start velocity initialization on",
@@ -521,9 +528,9 @@ class ProjectileSettings(bpy.types.PropertyGroup):
 
     quality: bpy.props.EnumProperty(
         name="Quality",
-        items=[("low", "Low", "Use low quality settings"),
-               ("medium", "Medium", "Use medium quality settings"),
-               ("high", "High", "Use high quality settings")],
+        items=[("low", "Low", "Use low quality solver settings"),
+               ("medium", "Medium", "Use medium quality solver settings"),
+               ("high", "High", "Use high quality solver settings")],
         default='medium',
         options={'HIDDEN'},
         update=set_quality_callback)
@@ -553,8 +560,11 @@ def register():
     bpy.types.Scene.projectile_settings = bpy.props.PointerProperty(type=ProjectileSettings)
     bpy.types.Object.projectile = bpy.props.BoolProperty(name="Projectile")
 
+    # bpy.app.handlers.depsgraph_update_post.append(depsgraph_handler)
+
 
 def unregister():
+    # bpy.app.handlers.depsgraph_update_post.remove(depsgraph_handler)
     bpy.types.SpaceView3D.draw_handler_remove(bpy.types.Scene.projectile_draw_handler, 'WINDOW')
 
     from bpy.utils import unregister_class
@@ -564,6 +574,7 @@ def unregister():
     del bpy.types.Object.projectile_props
     del bpy.types.Scene.projectile_settings
     del bpy.types.Object.projectile
+
 
 if __name__ == "__main__":
     register()
