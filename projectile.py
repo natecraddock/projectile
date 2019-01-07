@@ -211,7 +211,9 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
                 # Remove animation data
                 context.active_object.animation_data_clear()
 
-                bpy.ops.rigidbody.object_remove()
+                # Remove rigidbody if not already removed
+                if bpy.context.object.rigid_body:
+                    bpy.ops.rigidbody.object_remove()
 
                 context.object.projectile = False
 
