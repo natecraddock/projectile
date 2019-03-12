@@ -144,20 +144,37 @@ def calculate_trajectory(object):
 
 # Functions for draw handlers
 def draw_trajectory():
-    object = bpy.context.object
-    draw = bpy.context.scene.projectile_settings.draw_trajectories
 
-    coordinates = calculate_trajectory(object)
+    # TODO: apply to all objects
 
-    shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
-    batch = batch_for_shader(shader, 'LINES', {"pos": coordinates})
+    objects = [object for object in bpy.data.objects if object.projectile]
 
-    shader.bind()
-    shader.uniform_float("color", (1, 1, 1, 1))
+    for object in objects:
+        draw = bpy.context.scene.projectile_settings.draw_trajectories
+        start_hidden = object.projectile_props
 
-    # Only draw if
-    if draw and object.select_get() and object.projectile:
-        batch.draw(shader)
+        coordinates = calculate_trajectory(object)
+
+        shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+        batch = batch_for_shader(shader, 'LINES', {"pos": coordinates})
+
+        shader.bind()
+        shader.uniform_float("color", (1, 1, 1, 1))
+
+        # Only draw if
+        if draw and object.projectile:
+            batch.draw(shader)
+
+
+# To check when the depsgraph is updated
+def depsgraph_handler(scene):
+    depsgraph = bpy.context.depsgraph
+    for update in depsgraph.updates:
+        if isinstance(update.id, type(bpy.context.scene)):
+            if scene.projectile_settings.auto_update:
+                print("Scene Update")
+                # bpy.ops.rigidbody.projectile_launch()
+
 
 
 class PHYSICS_OT_projectile_add(bpy.types.Operator):
@@ -258,6 +275,8 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
         properties = object.projectile_props
         settings = bpy.context.scene.projectile_settings
         object.animation_data_clear()
+        object.hide_viewport = False
+        object.hide_render = False
 
         # Set start frame
         if bpy.context.scene.frame_start > properties.start_frame:
@@ -268,18 +287,20 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
         displacement = kinematic_displacement(properties.s, properties.v, 2)
         displacement_rotation = kinematic_rotation(properties.r, properties.w, 2)
 
-        '''
-        # Hide object if necessary
+        # Hide object
         if properties.start_hidden:
+            bpy.context.scene.frame_current -= 1
             object.hide_viewport = True
+            object.hide_render = True
             object.keyframe_insert('hide_viewport')
+            object.keyframe_insert('hide_render')
+            
             bpy.context.scene.frame_current += 1
             object.hide_viewport = False
+            object.hide_render = False
             object.keyframe_insert('hide_viewport')
-        else:
-            bpy.context.scene.frame_current += 1
-        '''
-
+            object.keyframe_insert('hide_render')
+        
         # Set start keyframe
         object.location = properties.s
         object.rotation_euler = properties.r
@@ -319,15 +340,6 @@ def update_callback(self, context):
     return None
 
 
-# To check when the depsgraph is updated
-def depsgraph_handler(scene):
-    depsgraph = bpy.context.depsgraph
-    for update in depsgraph.updates:
-        if isinstance(update.id, type(bpy.context.scene)):
-            if scene.projectile_settings.auto_update:
-                bpy.ops.rigidbody.projectile_launch()
-
-
 # TODO: Decide where to best place these settings (maybe two panels?) Quick settings in sidebar
 # And detailed settings in physics tab
 class PHYSICS_PT_projectile(bpy.types.Panel):
@@ -348,12 +360,6 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
                 row.operator('rigidbody.projectile_remove_object', text="Remove Objects")
             else:
                 row.operator('rigidbody.projectile_remove_object')
-
-            row = layout.row()
-            row.prop(ob.projectile_props, 'start_frame')
-
-            # row = layout.row()
-            # row.prop(ob.projectile_props, 'start_hidden')
 
             if not settings.auto_update:
                 row = layout.row()
@@ -376,7 +382,7 @@ class PHYSICS_PT_projectile_initial_settings(bpy.types.Panel):
 
     @classmethod
     def poll(self, context):
-        if context.object.projectile:
+        if context.object and context.object.projectile:
             return True
         return False
 
@@ -384,6 +390,12 @@ class PHYSICS_PT_projectile_initial_settings(bpy.types.Panel):
         layout = self.layout
         layout.use_property_split = True
         object = context.object
+
+        row = layout.row()
+        row.prop(object.projectile_props, 'start_frame')
+
+        row = layout.row()
+        row.prop(object.projectile_props, 'start_hidden')
 
         row = layout.row()
         row.prop(object.projectile_props, 's')
@@ -403,7 +415,7 @@ class PHYSICS_PT_projectile_velocity_settings(bpy.types.Panel):
 
     @classmethod
     def poll(self, context):
-        if context.object.projectile:
+        if context.object and context.object.projectile:
             return True
         return False
 
@@ -558,11 +570,12 @@ def register():
         register_class(cls)
 
     bpy.types.Scene.projectile_draw_handler = bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
+    # bpy.app.handlers.depsgraph_update_post.append(depsgraph_handler)
+    
     bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ProjectileObjectProperties)
     bpy.types.Scene.projectile_settings = bpy.props.PointerProperty(type=ProjectileSettings)
     bpy.types.Object.projectile = bpy.props.BoolProperty(name="Projectile")
 
-    # bpy.app.handlers.depsgraph_update_post.append(depsgraph_handler)
 
 
 def unregister():
