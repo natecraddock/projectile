@@ -34,6 +34,7 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 import mathutils
 import math
+from bpy.app.handlers import persistent
 
 
 # Apply Transforms
@@ -143,37 +144,51 @@ def calculate_trajectory(object):
 
 
 # Functions for draw handlers
+# Draws trajectories for all projectile objects
 def draw_trajectory():
+    # Only draw if draw_trajectories is enabled
+    if bpy.context.scene.projectile_settings.draw_trajectories:
 
-    # TODO: apply to all objects
+        objects = [object for object in bpy.data.objects if object.projectile]
 
-    objects = [object for object in bpy.data.objects if object.projectile]
+        # Generate a list of all coordinates for all trajectories
+        coordinates = []
+        for object in objects:
+            start_hidden = object.projectile_props
 
-    for object in objects:
-        draw = bpy.context.scene.projectile_settings.draw_trajectories
-        start_hidden = object.projectile_props
+            coordinates += calculate_trajectory(object)
 
-        coordinates = calculate_trajectory(object)
-
+        # Draw all trajectories
+        # TODO: Fix shader being tied to annotations
         shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
         batch = batch_for_shader(shader, 'LINES', {"pos": coordinates})
 
         shader.bind()
         shader.uniform_float("color", (1, 1, 1, 1))
 
-        # Only draw if
-        if draw and object.projectile:
-            batch.draw(shader)
+        batch.draw(shader)
+
+
+# Removes draw handler when draw trajectories is disabled
+def draw_trajectories_callback(self, context):
+    if context.scene.projectile.draw_trajectories:
+        bpy.types.Scene.projectile_draw_handler = bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
+    else:
+        bpy.types.SpaceView3D.draw_handler_remove(bpy.types.Scene.projectile_draw_handler, 'WINDOW')
 
 
 # To check when the depsgraph is updated
+@persistent
 def depsgraph_handler(scene):
     depsgraph = bpy.context.depsgraph
     for update in depsgraph.updates:
+        print(update)
         if isinstance(update.id, type(bpy.context.scene)):
             if scene.projectile_settings.auto_update:
-                print("Scene Update")
-                # bpy.ops.rigidbody.projectile_launch()
+                # ONLY UPDATE IF GRAVITY CHANGES - OTHERWISE STACK OVERFLOW!!
+                if scene.projectile_settings.gravity != scene.gravity:
+                    scene.projectile_settings.gravity = scene.gravity
+                    bpy.ops.rigidbody.projectile_launch()
 
 
 
@@ -523,7 +538,8 @@ class ProjectileSettings(bpy.types.PropertyGroup):
         name="Draw Trajectories",
         description="Draw projectile trajectories in the 3D view",
         options={'HIDDEN'},
-        default=True
+        default=True,
+        update=draw_trajectories_callback
     )
 
     auto_update: bpy.props.BoolProperty(
@@ -549,6 +565,11 @@ class ProjectileSettings(bpy.types.PropertyGroup):
         options={'HIDDEN'},
         update=set_quality_callback)
 
+    gravity: bpy.props.FloatVectorProperty(
+        name="Gravity",
+        subtype='ACCELERATION'
+    )
+
 
 classes = (
     ProjectileObjectProperties,
@@ -570,7 +591,7 @@ def register():
         register_class(cls)
 
     bpy.types.Scene.projectile_draw_handler = bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
-    # bpy.app.handlers.depsgraph_update_post.append(depsgraph_handler)
+    bpy.app.handlers.depsgraph_update_post.append(depsgraph_handler)
     
     bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ProjectileObjectProperties)
     bpy.types.Scene.projectile_settings = bpy.props.PointerProperty(type=ProjectileSettings)
@@ -579,8 +600,9 @@ def register():
 
 
 def unregister():
-    # bpy.app.handlers.depsgraph_update_post.remove(depsgraph_handler)
-    bpy.types.SpaceView3D.draw_handler_remove(bpy.types.Scene.projectile_draw_handler, 'WINDOW')
+    bpy.app.handlers.depsgraph_update_post.remove(depsgraph_handler)
+    if bpy.types.Scene.projectile_draw_handler:
+        bpy.types.SpaceView3D.draw_handler_remove(bpy.types.Scene.projectile_draw_handler, 'WINDOW')
 
     from bpy.utils import unregister_class
     for cls in reversed(classes):
