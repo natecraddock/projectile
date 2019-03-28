@@ -51,7 +51,7 @@ def apply_transforms(context):
 
 def set_quality(context):
 	frame_rate = context.scene.render.fps
-	quality = context.scene.projectile_settings.qualiacement(initial, velocity, time):
+	quality = context.scene.projectile_settings.quality
 	frame_rate = bpy.context.scene.render.fps
 	gravity = bpy.context.scene.gravity
 
