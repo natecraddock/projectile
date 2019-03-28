@@ -65,7 +65,6 @@ def set_quality(context):
 def set_quality_callback(self, context):
     set_quality(context)
 
-
 # Returns distance between two points in space
 def distance_between_points(origin, destination):
     return math.sqrt(math.pow(destination.x - origin.x, 2) + math.pow(destination.y - origin.y, 2) + math.pow(destination.z - origin.z, 2))
@@ -171,25 +170,19 @@ def draw_trajectory():
 
 # Removes draw handler when draw trajectories is disabled
 def draw_trajectories_callback(self, context):
-    if context.scene.projectile.draw_trajectories:
+    if context.scene.projectile_settings.draw_trajectories:
         bpy.types.Scene.projectile_draw_handler = bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
     else:
         bpy.types.SpaceView3D.draw_handler_remove(bpy.types.Scene.projectile_draw_handler, 'WINDOW')
 
 
-# To check when the depsgraph is updated
-@persistent
-def depsgraph_handler(scene):
-    depsgraph = bpy.context.depsgraph
-    for update in depsgraph.updates:
-        print(update)
-        if isinstance(update.id, type(bpy.context.scene)):
-            if scene.projectile_settings.auto_update:
-                # ONLY UPDATE IF GRAVITY CHANGES - OTHERWISE STACK OVERFLOW!!
-                if scene.projectile_settings.gravity != scene.gravity:
-                    scene.projectile_settings.gravity = scene.gravity
-                    bpy.ops.rigidbody.projectile_launch()
+def gravity_change_handler(*args):
+    draw_trajectory()
 
+    # Tag View 3D to redraw if it is open
+    for area in bpy.context.screen.areas:
+        if area.type == 'VIEW_3D':
+            area.tag_redraw()
 
 
 class PHYSICS_OT_projectile_add(bpy.types.Operator):
@@ -351,7 +344,7 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
 # A function to initialize the velocity every time a UI value is updated
 def update_callback(self, context):
     if context.scene.projectile_settings.auto_update:
-        bpy.ops.rigidbody.projectile_launch()
+        draw_trajectory()
     return None
 
 
@@ -591,8 +584,17 @@ def register():
         register_class(cls)
 
     bpy.types.Scene.projectile_draw_handler = bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
-    bpy.app.handlers.depsgraph_update_post.append(depsgraph_handler)
     
+    # Subscribe to scene gravity changes
+    subscribe_to = bpy.types.Scene, "gravity"
+    bpy.types.Scene.gravity_handler = object()
+    bpy.msgbus.subscribe_rna(
+        key=subscribe_to,
+        owner=bpy.types.Scene.gravity_handler,
+        args=(),
+        notify=gravity_change_handler,
+    )
+
     bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ProjectileObjectProperties)
     bpy.types.Scene.projectile_settings = bpy.props.PointerProperty(type=ProjectileSettings)
     bpy.types.Object.projectile = bpy.props.BoolProperty(name="Projectile")
@@ -600,7 +602,8 @@ def register():
 
 
 def unregister():
-    bpy.app.handlers.depsgraph_update_post.remove(depsgraph_handler)
+    # Remove scene gravity change msgbus subscription
+    bpy.msgbus.clear_by_owner(bpy.types.Scene.gravity_handler)
     if bpy.types.Scene.projectile_draw_handler:
         bpy.types.SpaceView3D.draw_handler_remove(bpy.types.Scene.projectile_draw_handler, 'WINDOW')
 
