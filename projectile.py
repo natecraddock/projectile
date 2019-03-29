@@ -50,26 +50,8 @@ def apply_transforms(context):
 
 
 def set_quality(context):
-	frame_rate = context.scene.render.fps
+	frame_rate = bpy.context.scene.render.fps
 	quality = context.scene.projectile_settings.quality
-	frame_rate = bpy.context.scene.render.fps
-	gravity = bpy.context.scene.gravity
-
-	dt = (time * 1.0) / frame_rate
-	ds = mathutils.Vector((0.0, 0.0, 0.0))
-
-	ds.x = initial.x + (velocity.x * dt) + (0.5 * gravity.x * math.pow(dt, 2))
-	ds.y = initial.y + (velocity.y * dt) + (0.5 * gravity.y * math.pow(dt, 2))
-	ds.z = initial.z + (velocity.z * dt) + (0.5 * gravity.z * math.pow(dt, 2))
-
-	return ds
-
-
-# Kinematic Equation to set angular velocity
-def kinematic_rotation(initial, angular_velocity, time):
-	frame_rate = bpy.context.scene.render.fps
-
-	dtty
 	if quality == 'low':
 		context.scene.rigidbody_world.steps_per_second = frame_rate * 4
 	elif quality == 'medium':
@@ -82,6 +64,7 @@ def kinematic_rotation(initial, angular_velocity, time):
 
 def set_quality_callback(self, context):
 	set_quality(context)
+
 
 # Returns distance between two points in space
 def distance_between_points(origin, destination):
@@ -199,6 +182,23 @@ def gravity_change_handler(*args):
 		for area in bpy.context.screen.areas:
 			if area.type == 'VIEW_3D':
 				area.tag_redraw()
+
+
+@persistent
+def subscribe_to_rna_props(scene):
+	# Subscribe to scene gravity changes
+	subscribe_to = bpy.types.Scene, "gravity"
+	bpy.types.Scene.gravity_handler = object()
+	bpy.msgbus.subscribe_rna(
+		key=subscribe_to,
+		owner=bpy.types.Scene.gravity_handler,
+		args=(),
+		notify=gravity_change_handler,
+	)
+
+def unsubscribe_to_rna_props():
+	# Unsubscribe from scene gravity changes
+	bpy.msgbus.clear_by_owner(bpy.types.Scene.gravity_handler)
 
 
 class PHYSICS_OT_projectile_add(bpy.types.Operator):
@@ -574,11 +574,6 @@ class ProjectileSettings(bpy.types.PropertyGroup):
 		options={'HIDDEN'},
 		update=set_quality_callback)
 
-	gravity: bpy.props.FloatVectorProperty(
-		name="Gravity",
-		subtype='ACCELERATION'
-	)
-
 
 classes = (
 	ProjectileObjectProperties,
@@ -600,16 +595,11 @@ def register():
 		register_class(cls)
 
 	bpy.types.Scene.projectile_draw_handler = bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
-	
-	# Subscribe to scene gravity changes
-	subscribe_to = bpy.types.Scene, "gravity"
-	bpy.types.Scene.gravity_handler = object()
-	bpy.msgbus.subscribe_rna(
-		key=subscribe_to,
-		owner=bpy.types.Scene.gravity_handler,
-		args=(),
-		notify=gravity_change_handler,
-	)
+	bpy.app.handlers.load_post.append(subscribe_to_rna_props)
+
+	# Subscribe to properties on first install/register
+	# Pass none to avoid argument count mismatch
+	subscribe_to_rna_props(None)
 
 	bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ProjectileObjectProperties)
 	bpy.types.Scene.projectile_settings = bpy.props.PointerProperty(type=ProjectileSettings)
@@ -618,10 +608,14 @@ def register():
 
 
 def unregister():
-	# Remove scene gravity change msgbus subscription
-	bpy.msgbus.clear_by_owner(bpy.types.Scene.gravity_handler)
 	if bpy.types.Scene.projectile_draw_handler:
 		bpy.types.SpaceView3D.draw_handler_remove(bpy.types.Scene.projectile_draw_handler, 'WINDOW')
+
+	# Remove file load handler for subscribing
+	bpy.app.handlers.load_post.remove(subscribe_to_rna_props)
+
+	# Unsubscribe from rna props
+	unsubscribe_to_rna_props()
 
 	from bpy.utils import unregister_class
 	for cls in reversed(classes):
