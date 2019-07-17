@@ -21,7 +21,7 @@ bl_info = {
 	"author": "Nathan Craddock",
 	"version": (1, 0),
 	"blender": (2, 80, 0),
-	"location": "Sidebar in 3D View",
+	"location": "3D View Sidebar > Physics tab",
 	"description": "Set initial velocities for rigid body physics",
 	"tracker_url": "",
 	"category": "Physics"
@@ -368,7 +368,7 @@ def update_callback(self, context):
 # And detailed settings in physics tab
 class PHYSICS_PT_projectile(bpy.types.Panel):
 	bl_label = "Projectile"
-	bl_category = "View"
+	bl_category = "Physics"
 	bl_space_type = "VIEW_3D"
 	bl_region_type = "UI"
 
@@ -400,6 +400,7 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
 class PHYSICS_PT_projectile_initial_settings(bpy.types.Panel):
 	bl_label = "Initial Settings"
 	bl_parent_id = "PHYSICS_PT_projectile"
+	bl_category = "Physics"
 	bl_space_type = "VIEW_3D"
 	bl_region_type = "UI"
 	bl_options = {'DEFAULT_CLOSED'}
@@ -434,6 +435,7 @@ class PHYSICS_PT_projectile_initial_settings(bpy.types.Panel):
 class PHYSICS_PT_projectile_velocity_settings(bpy.types.Panel):
 	bl_label = "Velocity Settings"
 	bl_parent_id = "PHYSICS_PT_projectile"
+	bl_category = "Physics"
 	bl_space_type = "VIEW_3D"
 	bl_region_type = "UI"
 
@@ -458,6 +460,7 @@ class PHYSICS_PT_projectile_velocity_settings(bpy.types.Panel):
 class PHYSICS_PT_projectile_settings(bpy.types.Panel):
 	bl_label = "Projectile Settings"
 	bl_parent_id = "PHYSICS_PT_projectile"
+	bl_category = "Physics"
 	bl_space_type = "VIEW_3D"
 	bl_region_type = "UI"
 	bl_options = {'DEFAULT_CLOSED'}
