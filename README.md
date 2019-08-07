@@ -1,6 +1,7 @@
 # Projectile
 
 ### [Download Projectile](https://raw.githubusercontent.com/natecraddock/projectile/master/projectile.py)
+Right-click and save link as a Python file. Then install `projectile.py` in Blender.
 
 ### Projectile features:
 - **Trajectory Tracing:** Projectile draws trajectories for each object so you can get an idea of how the object will interact with the scene.
@@ -9,6 +10,7 @@
 - **Real-World Units:** Projectile will use the same units that are used in the .blend file, so you can use m/s or ft/s so you can truly know how fast your objects will be moving.
 
 ## Usage
+Projectile is located in the Physics tab of the sidebar
 - Click **Add Object** to set an object as a Projectile object. It will set it to be an active rigidbody object, and will set the **Initial Location** and **Initial Rotation** based on any transforms the object has.
 - Click **Remove Object** to remove an object from projectile calculations.
   - *Both **Add Object** and **Remove Object** support multiple objects in selection.*
