@@ -84,7 +84,7 @@ def raycast(origin, destination, distance=1.70141e+38):
 # Used for drawing expected line
 def kinematic_displacement_expected(initial, velocity, time):
 	frame_rate = bpy.context.scene.render.fps
-	
+
 	if not bpy.context.scene.use_gravity:
 		gravity = mathutils.Vector((0.0, 0.0, 0.0))
 	else:
@@ -105,7 +105,7 @@ def kinematic_displacement_expected(initial, velocity, time):
 # Used for calulating keyframes on objects
 def kinematic_displacement(initial, velocity, time):
 	frame_rate = bpy.context.scene.render.fps
-	
+
 	if not bpy.context.scene.use_gravity:
 		gravity = mathutils.Vector((0.0, 0.0, 0.0))
 	else:
@@ -198,7 +198,8 @@ def draw_trajectories_callback(self, context):
 		bpy.types.SpaceView3D.draw_handler_remove(bpy.types.Scene.projectile_draw_handler, 'WINDOW')
 
 
-def gravity_change_handler(*args):
+# Handler to run when UI property changes are made
+def ui_prop_change_handler(*args):
 	if bpy.context.scene.projectile_settings.draw_trajectories:
 		draw_trajectory()
 
@@ -207,36 +208,48 @@ def gravity_change_handler(*args):
 			if area.type == 'VIEW_3D':
 				area.tag_redraw()
 
-	# run operator
-	if bpy.context.scene.projectile_settings.auto_update:
-		bpy.ops.rigidbody.projectile_launch()
+	# run operator for each projectile object
+	for object in bpy.context.objects:
+		if object.projectile:
+			if bpy.context.scene.projectile_settings.auto_update:
+				bpy.ops.rigidbody.projectile_launch()
 
 
 @persistent
 def subscribe_to_rna_props(scene):
+	bpy.types.Scene.props_msgbus_handler = object()
+
 	# Subscribe to scene gravity changes
 	subscribe_to = bpy.types.Scene, "gravity"
-	bpy.types.Scene.gravity_handler = object()
 	bpy.msgbus.subscribe_rna(
 		key=subscribe_to,
-		owner=bpy.types.Scene.gravity_handler,
+		owner=bpy.types.Scene.props_msgbus_handler,
 		args=(),
-		notify=gravity_change_handler,
+		notify=ui_prop_change_handler,
 	)
 
 	# Subscribe to scene gravity toggle
 	subscribe_to = bpy.types.Scene, "use_gravity"
-	bpy.types.Scene.gravity_handler = object()
 	bpy.msgbus.subscribe_rna(
 		key=subscribe_to,
-		owner=bpy.types.Scene.gravity_handler,
+		owner=bpy.types.Scene.props_msgbus_handler,
 		args=(),
-		notify=gravity_change_handler,
+		notify=ui_prop_change_handler,
 	)
+
+	# Subscribe to scene frame rate changes
+	subscribe_to = bpy.types.RenderSettings, "fps"
+	bpy.msgbus.subscribe_rna(
+		key=subscribe_to,
+		owner=bpy.types.Scene.props_msgbus_handler,
+		args=(),
+		notify=ui_prop_change_handler,
+	)
+
 
 def unsubscribe_to_rna_props():
 	# Unsubscribe from all RNA msgbus props
-	bpy.msgbus.clear_by_owner(bpy.types.Scene.gravity_handler)
+	bpy.msgbus.clear_by_owner(bpy.types.Scene.props_msgbus_handler)
 
 
 class PHYSICS_OT_projectile_add(bpy.types.Operator):
@@ -356,13 +369,13 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
 			object.hide_render = True
 			object.keyframe_insert('hide_viewport')
 			object.keyframe_insert('hide_render')
-			
+
 			bpy.context.scene.frame_current += 1
 			object.hide_viewport = False
 			object.hide_render = False
 			object.keyframe_insert('hide_viewport')
 			object.keyframe_insert('hide_render')
-		
+
 		# Set start keyframe
 		object.location = properties.s
 		object.rotation_euler = properties.r
