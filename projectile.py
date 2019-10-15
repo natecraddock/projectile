@@ -209,10 +209,15 @@ def ui_prop_change_handler(*args):
 				area.tag_redraw()
 
 	# run operator for each projectile object
-	for object in bpy.context.objects:
+	active = bpy.context.view_layer.objects.active
+
+	for object in bpy.context.view_layer.objects:
 		if object.projectile:
+			bpy.context.view_layer.objects.active = object
 			if bpy.context.scene.projectile_settings.auto_update:
 				bpy.ops.rigidbody.projectile_launch()
+
+	bpy.context.view_layer.objects.active = active
 
 
 @persistent
