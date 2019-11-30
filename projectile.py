@@ -136,12 +136,12 @@ def kinematic_rotation(initial, angular_velocity, time):
 
 
 # Convert spherical to cartesian coordinates
-def spherical_to_cartesian(radius, inclination, azimuth):
+def spherical_to_cartesian(radius, incline, azimuth):
 	v = mathutils.Vector((0.0, 0.0, 0.0))
 
-	v.x = radius * math.sin(inclination) * math.cos(azimuth)
-	v.y = radius * math.sin(inclination) * math.sin(azimuth)
-	v.z = radius * math.cos(inclination)
+	v.x = radius * math.sin(incline) * math.cos(azimuth)
+	v.y = radius * math.sin(incline) * math.sin(azimuth)
+	v.z = radius * math.cos(incline)
 
 	return v
 
@@ -149,10 +149,10 @@ def spherical_to_cartesian(radius, inclination, azimuth):
 # Convert cartesian to spherical coordinates
 def cartesian_to_spherical(v):
 	radius = math.sqrt(pow(v.x, 2) + pow(v.y, 2) + pow(v.z, 2))
-	inclination = math.acos(v.z / radius)
+	incline = math.acos(v.z / radius)
 	azimuth = math.atan(v.y / v.x)
 
-	return radius, inclination, azimuth
+	return radius, incline, azimuth
 
 
 def calculate_trajectory(object):
@@ -440,6 +440,55 @@ def update_callback(self, context):
 	return None
 
 
+# A global to determine if the property is set from the UI to avoid recursion
+FROM_UI = True
+
+# Convert cartesian to spherical coordinates for the active object
+def velocity_callback(self, context):
+	global FROM_UI
+
+	if FROM_UI:
+		FROM_UI = False
+		return
+
+	ob = context.object
+
+	if ob and ob.projectile:
+		radius, incline, azimuth = cartesian_to_spherical(ob.projectile_props.v)
+
+		FROM_UI = True
+		ob.projectile_props.radius = radius
+		FROM_UI = True
+		ob.projectile_props.incline = incline
+		FROM_UI = True
+		ob.projectile_props.azimuth = azimuth
+
+	# Run the launch operator
+	update_callback(self, context)
+
+
+# Convert spherical to cartesian coordinates for the active object
+def spherical_callback(self, context):
+	global FROM_UI
+
+	if FROM_UI:
+		FROM_UI = False
+		return
+
+	ob = context.object
+
+	if ob and ob.projectile:
+		radius = ob.projectile_props.radius
+		incline = ob.projectile_props.incline
+		azimuth = ob.projectile_props.azimuth
+
+		FROM_UI = True
+		ob.projectile_props.v = spherical_to_cartesian(radius, incline, azimuth)
+
+	# Run the launch operator
+	update_callback(self, context)
+
+
 # TODO: Decide where to best place these settings (maybe two panels?) Quick settings in sidebar
 # And detailed settings in physics tab
 class PHYSICS_PT_projectile(bpy.types.Panel):
@@ -522,12 +571,22 @@ class PHYSICS_PT_projectile_velocity_settings(bpy.types.Panel):
 		return False
 
 	def draw(self, context):
+		projectile_settings = context.scene.projectile_settings
 		layout = self.layout
 		layout.use_property_split = True
 		object = context.object
 
 		row = layout.row()
-		row.prop(object.projectile_props, 'v')
+		row.prop(context.scene.projectile_settings, 'spherical')
+
+		if projectile_settings.spherical:
+			col = layout.column(align=True)
+			col.prop(object.projectile_props, 'radius')
+			col.prop(object.projectile_props, 'incline')
+			col.prop(object.projectile_props, 'azimuth')
+		else:
+			row = layout.row()
+			row.prop(object.projectile_props, 'v')
 
 		row = layout.row()
 		row.prop(object.projectile_props, 'w')
@@ -600,7 +659,7 @@ class ProjectileObjectProperties(bpy.types.PropertyGroup):
 		subtype='VELOCITY',
 		precision=4,
 		options={'HIDDEN'},
-		update=update_callback
+		update=velocity_callback
 	)
 
 	w: bpy.props.FloatVectorProperty(
@@ -618,6 +677,30 @@ class ProjectileObjectProperties(bpy.types.PropertyGroup):
 		default=False,
 		options={'HIDDEN'},
 		update=update_callback
+	)
+
+	radius: bpy.props.FloatProperty(
+		name="Radius",
+		description="Radius (magnitude) of velocity",
+		default=0.0,
+		unit='VELOCITY',
+		update=spherical_callback
+	)
+
+	incline: bpy.props.FloatProperty(
+		name="Incline",
+		description="Incline (theta) for velocity",
+		default=0.0,
+		unit='ROTATION',
+		update=spherical_callback
+	)
+
+	azimuth: bpy.props.FloatProperty(
+		name="Azimuth",
+		description="Azimuth (phi) for velocity",
+		default=0.0,
+		unit='ROTATION',
+		update=spherical_callback
 	)
 
 
@@ -652,6 +735,13 @@ class ProjectileSettings(bpy.types.PropertyGroup):
 		default='medium',
 		options={'HIDDEN'},
 		update=set_quality_callback)
+
+	spherical: bpy.props.BoolProperty(
+		name="Spherical",
+		description="Set velocity with spherical coordinates",
+		options={'HIDDEN'},
+		default=False
+	)
 
 
 classes = (
