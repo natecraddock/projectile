@@ -149,8 +149,14 @@ def spherical_to_cartesian(radius, incline, azimuth):
 # Convert cartesian to spherical coordinates
 def cartesian_to_spherical(v):
 	radius = math.sqrt(pow(v.x, 2) + pow(v.y, 2) + pow(v.z, 2))
-	incline = math.acos(v.z / radius)
-	azimuth = math.atan(v.y / v.x)
+
+	incline = 0
+	if radius != 0:
+		incline = math.acos(v.z / radius)
+
+	azimuth = 0
+	if v.x != 0:
+		azimuth = math.atan(v.y / v.x)
 
 	return radius, incline, azimuth
 
