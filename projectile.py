@@ -135,6 +135,17 @@ def kinematic_rotation(initial, angular_velocity, time):
 	return dr
 
 
+# Convert spherical to cartesian coordinates
+def spherical_to_cartesian(radius, inclination, azimuth):
+	v = mathutils.Vector((0.0, 0.0, 0.0))
+
+	v.x = radius * math.sin(inclination) * math.cos(azimuth)
+	v.y = radius * math.sin(inclination) * math.sin(azimuth)
+	v.z = radius * math.cos(inclination)
+
+	return v
+
+
 def calculate_trajectory(object):
 	# Generate coordinates
 	cast = []
