@@ -146,6 +146,15 @@ def spherical_to_cartesian(radius, inclination, azimuth):
 	return v
 
 
+# Convert cartesian to spherical coordinates
+def cartesian_to_spherical(v):
+	radius = math.sqrt(pow(v.x, 2) + pow(v.y, 2) + pow(v.z, 2))
+	inclination = math.acos(v.z / radius)
+	azimuth = math.atan(v.y / v.x)
+
+	return radius, inclination, azimuth
+
+
 def calculate_trajectory(object):
 	# Generate coordinates
 	cast = []
