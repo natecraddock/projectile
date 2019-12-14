@@ -690,6 +690,7 @@ class ProjectileObjectProperties(bpy.types.PropertyGroup):
 		description="Radius (magnitude) of velocity",
 		default=0.0,
 		unit='VELOCITY',
+		options={'HIDDEN'},
 		update=spherical_callback
 	)
 
@@ -698,6 +699,7 @@ class ProjectileObjectProperties(bpy.types.PropertyGroup):
 		description="Incline (theta) for velocity",
 		default=0.0,
 		unit='ROTATION',
+		options={'HIDDEN'},
 		update=spherical_callback
 	)
 
@@ -706,6 +708,7 @@ class ProjectileObjectProperties(bpy.types.PropertyGroup):
 		description="Azimuth (phi) for velocity",
 		default=0.0,
 		unit='ROTATION',
+		options={'HIDDEN'},
 		update=spherical_callback
 	)
 
