@@ -27,13 +27,16 @@ bl_info = {
     "category": "Physics"
 }
 
+from . import props
 from . import ui
 from . import ops
 
 def register():
+    props.register()
     ui.register()
     ops.register()
 
 def unregister():
+    props.register()
     ui.register()
     ops.register()
