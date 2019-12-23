@@ -29,14 +29,11 @@ bl_info = {
 
 from . import ui
 from . import ops
-from . import utils
 
 def register():
     ui.register()
     ops.register()
-    utils.register()
 
 def unregister():
     ui.register()
     ops.register()
-    utils.register()
