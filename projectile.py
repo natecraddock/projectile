@@ -34,13 +34,12 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 import mathutils
 import math
-from bpy.app.handlers import persistent
 
 
 # Apply Transforms
 def apply_transforms(context):
 	for object in context.selected_objects:
-		if object.projectile:
+		if object.projectile_props.is_projectile:
 			# Setting r and s with auto update changes the second setting
 			# Store for now
 			location = object.location.copy()
@@ -198,7 +197,7 @@ def calculate_trajectory(object):
 # Functions for draw handlers
 # Draws trajectories for all projectile objects
 def draw_trajectory():
-	objects = [object for object in bpy.data.objects if object.projectile]
+	objects = [object for object in bpy.data.objects if object.projectile_props.is_projectile]
 
 	# Generate a list of all coordinates for all trajectories
 	coordinates = []
@@ -238,7 +237,7 @@ def ui_prop_change_handler(*args):
 	active = bpy.context.view_layer.objects.active
 
 	for object in bpy.context.view_layer.objects:
-		if object.projectile:
+		if object.projectile_props.is_projectile:
 			bpy.context.view_layer.objects.active = object
 			if bpy.context.scene.projectile_settings.auto_update:
 				bpy.ops.rigidbody.projectile_launch()
@@ -246,7 +245,6 @@ def ui_prop_change_handler(*args):
 	bpy.context.view_layer.objects.active = active
 
 
-@persistent
 def subscribe_to_rna_props(scene):
 	bpy.types.Scene.props_msgbus_handler = object()
 
@@ -295,14 +293,14 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
 
 	def execute(self, context):
 		for object in context.selected_objects:
-			if not object.projectile:
+			if not object.projectile_props.is_projectile:
 				context.view_layer.objects.active = object
 				# Make sure it is a rigid body
 				if object.rigid_body is None:
 					bpy.ops.rigidbody.object_add()
 
 				# Set as a projectile
-				object.projectile = True
+				object.projectile_props.is_projectile = True
 
 				# Now initialize the transforms
 				apply_transforms(context)

@@ -21,6 +21,36 @@ import bpy
 from . import utils
 
 
+# This class holds the handler for drawing trajectories in the 3D view.
+# It is wrapped in an operator (singleton) to make it easier to create
+# and destroy the handler.
+class PHYSICS_OT_projectle_draw(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_draw"
+    bl_label = "Draw"
+    bl_description = "Trajectory draw handler"
+
+    _handle = None
+
+    @staticmethod
+    def add_handler():
+        if PHYSICS_OT_projectle_draw._handle is None:
+            PHYSICS_OT_projectle_draw._handle = bpy.types.SpaceView3D.draw_handler_add(
+                utils.draw_trajectory,
+                (),
+                'WINDOW',
+                'POST_VIEW')
+
+    @staticmethod
+    def remove_handler():
+        if PHYSICS_OT_projectle_draw._handle is not None:
+            bpy.types.SpaceView3D.draw_handler_remove(PHYSICS_OT_projectle_draw._handle, 'WINDOW')
+
+        PHYSICS_OT_projectle_draw._handle = None
+
+    def execute(self, context):
+        return {'FINISHED'}
+
+
 class PHYSICS_PT_projectile(bpy.types.Panel):
     bl_label = "Projectile"
     bl_category = "Physics"
@@ -33,9 +63,9 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
         settings = context.scene.projectile_settings
 
         ob = context.object
-        if (ob and ob.projectile):
+        if (ob and ob.projectile_props.is_projectile):
             row = layout.row()
-            if(len([object for object in context.selected_objects if object.projectile])) > 1:
+            if(len([object for object in context.selected_objects if object.projectile_props.is_projectile])) > 1:
                 row.operator('rigidbody.projectile_remove_object', text="Remove Objects")
             else:
                 row.operator('rigidbody.projectile_remove_object')
@@ -62,7 +92,7 @@ class PHYSICS_PT_projectile_initial_settings(bpy.types.Panel):
 
     @classmethod
     def poll(self, context):
-        if context.object and context.object.projectile:
+        if context.object and context.object.projectile_props.is_projectile:
             return True
         return False
 
@@ -96,7 +126,7 @@ class PHYSICS_PT_projectile_velocity_settings(bpy.types.Panel):
 
     @classmethod
     def poll(self, context):
-        if context.object and context.object.projectile:
+        if context.object and context.object.projectile_props.is_projectile:
             return True
         return False
 
@@ -133,7 +163,7 @@ class PHYSICS_PT_projectile_settings(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         for object in context.scene.objects:
-            if object.projectile:
+            if object.projectile_props.is_projectile:
                 return True
 
         return False

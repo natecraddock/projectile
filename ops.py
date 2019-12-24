@@ -33,14 +33,14 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
 
     def execute(self, context):
         for object in context.selected_objects:
-            if not object.projectile:
+            if not object.projectile_props.is_projectile:
                 context.view_layer.objects.active = object
                 # Make sure it is a rigid body
                 if object.rigid_body is None:
                     bpy.ops.rigidbody.object_add()
 
                 # Set as a projectile
-                object.projectile = True
+                object.projectile_props.is_projectile = True
 
                 # Now initialize the transforms
                 utils.apply_transforms(context)
@@ -62,11 +62,11 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         if context.object:
-            return context.object.projectile
+            return context.object.projectile_props.is_projectile
 
     def execute(self, context):
         for object in context.selected_objects:
-            if object.projectile:
+            if object.projectile_props.is_projectile:
                 context.view_layer.objects.active = object
 
                 # Remove animation data
@@ -76,7 +76,7 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
                 if bpy.context.object.rigid_body:
                     bpy.ops.rigidbody.object_remove()
 
-                context.object.projectile = False
+                context.object.projectile_props.is_projectile = False
 
                 # HACKY! :D
                 # Move frame forward, then back to update
@@ -93,7 +93,7 @@ class PHYSICS_OT_projectile_apply_transforms(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        if context.object.projectile:
+        if context.object.projectile_props.is_projectile:
             return context.object.type == 'MESH'
 
     def execute(self, context):
@@ -186,32 +186,7 @@ classes = (
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-    
-    bpy.types.Scene.projectile_draw_handler = bpy.types.SpaceView3D.draw_handler_add(utils.draw_trajectory, (), 'WINDOW', 'POST_VIEW')
-    bpy.app.handlers.load_post.append(utils.subscribe_to_rna_props)
-
-    # Subscribe to properties on first install/register
-    # Pass none to avoid argument count mismatch
-    utils.subscribe_to_rna_props(None)
-
-    bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ui.ProjectileObjectProperties)
-    bpy.types.Scene.projectile_settings = bpy.props.PointerProperty(type=ui.ProjectileSettings)
-    bpy.types.Object.projectile = bpy.props.BoolProperty(name="Projectile")
-
 
 def unregister():
-    if bpy.types.Scene.projectile_draw_handler:
-        bpy.types.SpaceView3D.draw_handler_remove(bpy.types.Scene.projectile_draw_handler, 'WINDOW')
-
-    # Remove file load handler for subscribing
-    bpy.app.handlers.load_post.remove(utils.subscribe_to_rna_props)
-
-    # Unsubscribe from rna props
-    utils.unsubscribe_to_rna_props()
-
     for cls in classes:
         bpy.utils.unregister_class(cls)
-
-    del bpy.types.Object.projectile_props
-    del bpy.types.Scene.projectile_settings
-    del bpy.types.Object.projectile

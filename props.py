@@ -19,9 +19,15 @@
 import bpy
 
 from . import utils
+from . import ui
 
+class ProjectileObject(bpy.types.PropertyGroup):
+    is_projectile: bpy.props.BoolProperty(
+        name="Is Projectile",
+        description="Is this object a projectile (for internal use)",
+        default=False
+    )
 
-class ProjectileObjectProperties(bpy.types.PropertyGroup):
     start_frame: bpy.props.IntProperty(
         name="Start Frame",
         description="Frame to start velocity initialization on",
@@ -102,13 +108,20 @@ class ProjectileObjectProperties(bpy.types.PropertyGroup):
     )
 
 
+# Removes draw handler when draw trajectories is disabled
+def draw_trajectories_callback(self, context):
+    utils.toggle_trajectory_drawing()
+
+def set_quality_callback(self, context):
+    utils.set_quality(context)
+
 class ProjectileSettings(bpy.types.PropertyGroup):
     draw_trajectories: bpy.props.BoolProperty(
         name="Draw Trajectories",
         description="Draw projectile trajectories in the 3D view",
         options={'HIDDEN'},
         default=True,
-        update=utils.draw_trajectories_callback
+        update=draw_trajectories_callback
     )
 
     auto_update: bpy.props.BoolProperty(
@@ -132,7 +145,7 @@ class ProjectileSettings(bpy.types.PropertyGroup):
                ("high", "High", "Use high quality solver settings")],
         default='medium',
         options={'HIDDEN'},
-        update=utils.set_quality_callback)
+        update=set_quality_callback)
 
     spherical: bpy.props.BoolProperty(
         name="Spherical",
@@ -143,7 +156,7 @@ class ProjectileSettings(bpy.types.PropertyGroup):
 
 
 classes = (
-    ProjectileObjectProperties,
+    ProjectileObject,
     ProjectileSettings,
 )
 
@@ -151,6 +164,12 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
+    bpy.types.Object.projectile_props = bpy.props.PointerProperty(type=ProjectileObject)
+    bpy.types.Scene.projectile_settings = bpy.props.PointerProperty(type=ProjectileSettings)
+
 def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
+
+    del bpy.types.Object.projectile_props
+    del bpy.types.Scene.projectile_settings

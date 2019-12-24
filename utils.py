@@ -21,7 +21,16 @@ import gpu
 from gpu_extras.batch import batch_for_shader
 import mathutils
 import math
-from bpy.app.handlers import persistent
+
+from . import ui
+
+
+def toggle_trajectory_drawing():
+    if bpy.context.scene.projectile_settings.draw_trajectories:
+        ui.PHYSICS_OT_projectle_draw.add_handler()
+    else:
+        ui.PHYSICS_OT_projectle_draw.remove_handler()
+
 
 # Handler to run when UI property changes are made
 def ui_prop_change_handler(*args):
@@ -37,15 +46,14 @@ def ui_prop_change_handler(*args):
     active = bpy.context.view_layer.objects.active
 
     for object in bpy.context.view_layer.objects:
-        if object.projectile:
+        if object.projectile_props.is_projectile:
             bpy.context.view_layer.objects.active = object
             if bpy.context.scene.projectile_settings.auto_update:
                 bpy.ops.rigidbody.projectile_launch()
 
     bpy.context.view_layer.objects.active = active
 
-@persistent
-def subscribe_to_rna_props(scene):
+def subscribe_to_rna_props():
     bpy.types.Scene.props_msgbus_handler = object()
 
     # Subscribe to scene gravity changes
@@ -84,7 +92,7 @@ def unsubscribe_to_rna_props():
 # Apply Transforms
 def apply_transforms(context):
     for object in context.selected_objects:
-        if object.projectile:
+        if object.projectile_props.is_projectile:
             # Setting r and s with auto update changes the second setting
             # Store for now
             location = object.location.copy()
@@ -225,7 +233,7 @@ def calculate_trajectory(object):
 # Functions for draw handlers
 # Draws trajectories for all projectile objects
 def draw_trajectory():
-    objects = [object for object in bpy.data.objects if object.projectile]
+    objects = [object for object in bpy.data.objects if object.projectile_props.is_projectile]
 
     # Generate a list of all coordinates for all trajectories
     coordinates = []
@@ -263,7 +271,7 @@ def velocity_callback(self, context):
 
     ob = context.object
 
-    if ob and ob.projectile:
+    if ob and ob.projectile_props.is_projectile:
         radius, incline, azimuth = cartesian_to_spherical(ob.projectile_props.v)
 
         FROM_UI = True
@@ -287,7 +295,7 @@ def spherical_callback(self, context):
 
     ob = context.object
 
-    if ob and ob.projectile:
+    if ob and ob.projectile_props.is_projectile:
         radius = ob.projectile_props.radius
         incline = ob.projectile_props.incline
         azimuth = ob.projectile_props.azimuth
@@ -297,14 +305,6 @@ def spherical_callback(self, context):
 
     # Run the launch operator
     update_callback(self, context)
-
-# Removes draw handler when draw trajectories is disabled
-def draw_trajectories_callback(self, context):
-    if context.scene.projectile_settings.draw_trajectories:
-        bpy.types.Scene.projectile_draw_handler = bpy.types.SpaceView3D.draw_handler_add(draw_trajectory, (), 'WINDOW', 'POST_VIEW')
-    else:
-        bpy.types.SpaceView3D.draw_handler_remove(bpy.types.Scene.projectile_draw_handler, 'WINDOW')
-
 
 def set_quality(context):
     frame_rate = bpy.context.scene.render.fps
@@ -317,6 +317,3 @@ def set_quality(context):
         context.scene.rigidbody_world.steps_per_second = frame_rate * 20
 
     context.scene.rigidbody_world.solver_iterations = 20
-
-def set_quality_callback(self, context):
-    set_quality(context)
