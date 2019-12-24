@@ -21,6 +21,42 @@ import bpy
 from . import utils
 from . import ui
 
+
+def subscribe_to_rna_props():
+    bpy.types.Scene.props_msgbus_handler = object()
+
+    # Subscribe to scene gravity changes
+    subscribe_to = bpy.types.Scene, "gravity"
+    bpy.msgbus.subscribe_rna(
+        key=subscribe_to,
+        owner=bpy.types.Scene.props_msgbus_handler,
+        args=(),
+        notify=utils.ui_prop_change_handler,
+    )
+
+    # Subscribe to scene gravity toggle
+    subscribe_to = bpy.types.Scene, "use_gravity"
+    bpy.msgbus.subscribe_rna(
+        key=subscribe_to,
+        owner=bpy.types.Scene.props_msgbus_handler,
+        args=(),
+        notify=utils.ui_prop_change_handler,
+    )
+
+    # Subscribe to scene frame rate changes
+    subscribe_to = bpy.types.RenderSettings, "fps"
+    bpy.msgbus.subscribe_rna(
+        key=subscribe_to,
+        owner=bpy.types.Scene.props_msgbus_handler,
+        args=(),
+        notify=utils.ui_prop_change_handler,
+    )
+
+def unsubscribe_to_rna_props():
+    # Unsubscribe from all RNA msgbus props
+    bpy.msgbus.clear_by_owner(bpy.types.Scene.props_msgbus_handler)
+
+
 class ProjectileObject(bpy.types.PropertyGroup):
     is_projectile: bpy.props.BoolProperty(
         name="Is Projectile",

@@ -39,7 +39,7 @@ from . import utils
 # Functions to run on file load
 @persistent
 def file_load_callback(scene):
-    utils.subscribe_to_rna_props()
+    props.subscribe_to_rna_props()
 
     # Toggle trajectory drawing if enabled in this .blend
     utils.toggle_trajectory_drawing()
@@ -52,7 +52,7 @@ def register():
     # Add a callback for file load
     bpy.app.handlers.load_post.append(file_load_callback)
 
-    utils.subscribe_to_rna_props()
+    props.subscribe_to_rna_props()
     utils.toggle_trajectory_drawing()
 
 def unregister():
@@ -63,7 +63,7 @@ def unregister():
     # Remove file load handler
     bpy.app.handlers.load_post.remove(file_load_callback)
 
-    utils.unsubscribe_to_rna_props()
+    props.unsubscribe_to_rna_props()
 
     # Remove the draw handler
     ui.PHYSICS_OT_projectle_draw.remove_handler()

@@ -31,7 +31,6 @@ def toggle_trajectory_drawing():
     else:
         ui.PHYSICS_OT_projectle_draw.remove_handler()
 
-
 # Handler to run when UI property changes are made
 def ui_prop_change_handler(*args):
     if bpy.context.scene.projectile_settings.draw_trajectories:
@@ -53,42 +52,6 @@ def ui_prop_change_handler(*args):
 
     bpy.context.view_layer.objects.active = active
 
-def subscribe_to_rna_props():
-    bpy.types.Scene.props_msgbus_handler = object()
-
-    # Subscribe to scene gravity changes
-    subscribe_to = bpy.types.Scene, "gravity"
-    bpy.msgbus.subscribe_rna(
-        key=subscribe_to,
-        owner=bpy.types.Scene.props_msgbus_handler,
-        args=(),
-        notify=ui_prop_change_handler,
-    )
-
-    # Subscribe to scene gravity toggle
-    subscribe_to = bpy.types.Scene, "use_gravity"
-    bpy.msgbus.subscribe_rna(
-        key=subscribe_to,
-        owner=bpy.types.Scene.props_msgbus_handler,
-        args=(),
-        notify=ui_prop_change_handler,
-    )
-
-    # Subscribe to scene frame rate changes
-    subscribe_to = bpy.types.RenderSettings, "fps"
-    bpy.msgbus.subscribe_rna(
-        key=subscribe_to,
-        owner=bpy.types.Scene.props_msgbus_handler,
-        args=(),
-        notify=ui_prop_change_handler,
-    )
-
-
-def unsubscribe_to_rna_props():
-    # Unsubscribe from all RNA msgbus props
-    bpy.msgbus.clear_by_owner(bpy.types.Scene.props_msgbus_handler)
-
-
 # Apply Transforms
 def apply_transforms(context):
     for object in context.selected_objects:
@@ -100,11 +63,9 @@ def apply_transforms(context):
             object.projectile_props.s = location
             object.projectile_props.r = rotation
 
-
 # Returns distance between two points in space
 def distance_between_points(origin, destination):
     return math.sqrt(math.pow(destination.x - origin.x, 2) + math.pow(destination.y - origin.y, 2) + math.pow(destination.z - origin.z, 2))
-
 
 # Raycast from origin to destination (Defaults to (nearly) infinite distance)
 def raycast(origin, destination, distance=1.70141e+38):
@@ -113,7 +74,6 @@ def raycast(origin, destination, distance=1.70141e+38):
 
     cast = bpy.context.scene.ray_cast(view_layer, origin, direction, distance=distance)
     return cast
-
 
 # Kinematic Equation to find displacement over time
 # Used for drawing expected line
@@ -135,7 +95,6 @@ def kinematic_displacement_expected(initial, velocity, time):
 
     return ds
 
-
 # Kinematic Equation with error correction
 # Used for calulating keyframes on objects
 def kinematic_displacement(initial, velocity, time):
@@ -155,7 +114,6 @@ def kinematic_displacement(initial, velocity, time):
 
     return ds
 
-
 # Kinematic Equation to set angular velocity
 def kinematic_rotation(initial, angular_velocity, time):
     frame_rate = bpy.context.scene.render.fps
@@ -169,7 +127,6 @@ def kinematic_rotation(initial, angular_velocity, time):
 
     return dr
 
-
 # Convert spherical to cartesian coordinates
 def spherical_to_cartesian(radius, incline, azimuth):
     v = mathutils.Vector((0.0, 0.0, 0.0))
@@ -179,7 +136,6 @@ def spherical_to_cartesian(radius, incline, azimuth):
     v.z = radius * math.cos(incline)
 
     return v
-
 
 # Convert cartesian to spherical coordinates
 def cartesian_to_spherical(v):
@@ -194,7 +150,6 @@ def cartesian_to_spherical(v):
         azimuth = math.atan(v.y / v.x)
 
     return radius, incline, azimuth
-
 
 def calculate_trajectory(object):
     # Generate coordinates
@@ -229,7 +184,6 @@ def calculate_trajectory(object):
 
     return coordinates
 
-
 # Functions for draw handlers
 # Draws trajectories for all projectile objects
 def draw_trajectory():
@@ -250,13 +204,11 @@ def draw_trajectory():
 
     batch.draw(shader)
 
-
 # A function to initialize the velocity every time a UI value is updated
 def update_callback(self, context):
     if context.scene.projectile_settings.auto_update:
         bpy.ops.rigidbody.projectile_launch()
     return None
-
 
 # A global to determine if the property is set from the UI to avoid recursion
 FROM_UI = True
@@ -283,7 +235,6 @@ def velocity_callback(self, context):
 
     # Run the launch operator
     update_callback(self, context)
-
 
 # Convert spherical to cartesian coordinates for the active object
 def spherical_callback(self, context):
