@@ -112,14 +112,6 @@ class PHYSICS_PT_projectile_settings(bpy.types.Panel):
     bl_region_type = "UI"
     bl_options = {'DEFAULT_CLOSED'}
 
-    @classmethod
-    def poll(cls, context):
-        for object in context.scene.objects:
-            if object.projectile_props.is_projectile:
-                return True
-
-        return False
-
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True

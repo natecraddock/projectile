@@ -61,6 +61,43 @@ def apply_transforms(context):
             object.projectile_props.s = location
             object.projectile_props.r = rotation
 
+# Unlink an object from each collection it is in
+def unlink_object_from_all_collections(ob):
+    name = ob.name
+
+    for collection in bpy.data.collections:
+        if name in collection.objects:
+            collection.objects.unlink(ob)
+
+def get_projectile_collection():
+    if 'projectile_collection' not in bpy.context.scene.projectile_settings \
+        or bpy.context.scene.projectile_settings['projectile_collection'] is None:
+
+        projectile_collection = bpy.data.collections.new("Projectile Instances")
+        bpy.context.scene.collection.children.link(projectile_collection)
+
+        bpy.context.scene.projectile_settings['projectile_collection'] = projectile_collection
+
+    return bpy.context.scene.projectile_settings['projectile_collection']
+
+def get_projectile_instances():
+    if 'projectile_instances' not in bpy.context.scene.projectile_settings:
+        bpy.context.scene.projectile_settings['projectile_instances'] = []
+
+    return bpy.context.scene.projectile_settings['projectile_instances'].to_list()
+
+def add_projectile_instance(ob):
+    instances = get_projectile_instances()
+    instances.append(ob)
+
+    bpy.context.scene.projectile_settings['projectile_instances'] = instances
+
+def remove_projectile_instance(ob):
+    instances = get_projectile_instances()
+    instances.remove(ob)
+
+    bpy.context.scene.projectile_settings['projectile_instances'] = instances
+
 # Returns distance between two points in space
 def distance_between_points(origin, destination):
     return math.sqrt(math.pow(destination.x - origin.x, 2) + math.pow(destination.y - origin.y, 2) + math.pow(destination.z - origin.z, 2))
