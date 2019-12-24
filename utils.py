@@ -56,8 +56,6 @@ def ui_prop_change_handler(*args):
 def apply_transforms(context):
     for object in context.selected_objects:
         if object.projectile_props.is_projectile:
-            # Setting r and s with auto update changes the second setting
-            # Store for now
             location = object.location.copy()
             rotation = object.rotation_euler.copy()
             object.projectile_props.s = location
@@ -204,12 +202,6 @@ def draw_trajectory():
 
     batch.draw(shader)
 
-# A function to initialize the velocity every time a UI value is updated
-def update_callback(self, context):
-    if context.scene.projectile_settings.auto_update:
-        bpy.ops.rigidbody.projectile_launch()
-    return None
-
 # A global to determine if the property is set from the UI to avoid recursion
 FROM_UI = True
 
@@ -233,9 +225,6 @@ def velocity_callback(self, context):
         FROM_UI = True
         ob.projectile_props.azimuth = azimuth
 
-    # Run the launch operator
-    update_callback(self, context)
-
 # Convert spherical to cartesian coordinates for the active object
 def spherical_callback(self, context):
     global FROM_UI
@@ -253,9 +242,6 @@ def spherical_callback(self, context):
 
         FROM_UI = True
         ob.projectile_props.v = spherical_to_cartesian(radius, incline, azimuth)
-
-    # Run the launch operator
-    update_callback(self, context)
 
 def set_quality(context):
     frame_rate = bpy.context.scene.render.fps

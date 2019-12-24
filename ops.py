@@ -171,9 +171,6 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
 
         bpy.context.scene.frame_current = 0
 
-        if settings.auto_play and not bpy.context.screen.is_animation_playing:
-            bpy.ops.screen.animation_play()
-
         return {'FINISHED'}
 
 classes = (

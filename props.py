@@ -69,7 +69,20 @@ class ProjectileObject(bpy.types.PropertyGroup):
         description="Frame to start velocity initialization on",
         default=1,
         options={'HIDDEN'},
-        update=utils.update_callback
+    )
+
+    end_frame: bpy.props.IntProperty(
+        name="End Frame",
+        description="Frame to end projectile instancing",
+        default=50,
+        options={'HIDDEN'},
+    )
+
+    instance_count: bpy.props.IntProperty(
+        name="Number",
+        description="Instances of the projectile",
+        default=1,
+        options={'HIDDEN'},
     )
 
     s: bpy.props.FloatVectorProperty(
@@ -78,7 +91,6 @@ class ProjectileObject(bpy.types.PropertyGroup):
         subtype='TRANSLATION',
         precision=4,
         options={'HIDDEN'},
-        update=utils.update_callback
     )
 
     r: bpy.props.FloatVectorProperty(
@@ -87,7 +99,6 @@ class ProjectileObject(bpy.types.PropertyGroup):
         precision=4,
         options={'HIDDEN'},
         subtype='EULER',
-        update=utils.update_callback
     )
 
     v: bpy.props.FloatVectorProperty(
@@ -105,7 +116,6 @@ class ProjectileObject(bpy.types.PropertyGroup):
         subtype='EULER',
         precision=4,
         options={'HIDDEN'},
-        update=utils.update_callback
     )
 
     start_hidden: bpy.props.BoolProperty(
@@ -113,7 +123,6 @@ class ProjectileObject(bpy.types.PropertyGroup):
         description="Hide the object before the start frame",
         default=False,
         options={'HIDDEN'},
-        update=utils.update_callback
     )
 
     radius: bpy.props.FloatProperty(
@@ -160,20 +169,6 @@ class ProjectileSettings(bpy.types.PropertyGroup):
         update=draw_trajectories_callback
     )
 
-    auto_update: bpy.props.BoolProperty(
-        name="Auto Update",
-        description="Update the rigidbody simulation after property changes",
-        options={'HIDDEN'},
-        default=True
-    )
-
-    auto_play: bpy.props.BoolProperty(
-        name="Auto Play",
-        description="Start animation playback after any changes",
-        options={'HIDDEN'},
-        default=False
-    )
-
     quality: bpy.props.EnumProperty(
         name="Quality",
         items=[("low", "Low", "Use low quality solver settings"),
@@ -184,10 +179,10 @@ class ProjectileSettings(bpy.types.PropertyGroup):
         update=set_quality_callback)
 
     spherical: bpy.props.BoolProperty(
-        name="Spherical",
+        name="Spherical Coordinates",
         description="Set velocity with spherical coordinates",
         options={'HIDDEN'},
-        default=False
+        default=True
     )
 
 

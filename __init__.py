@@ -53,7 +53,6 @@ def register():
     bpy.app.handlers.load_post.append(file_load_callback)
 
     props.subscribe_to_rna_props()
-    utils.toggle_trajectory_drawing()
 
 def unregister():
     props.unregister()

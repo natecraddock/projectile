@@ -63,16 +63,12 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
         settings = context.scene.projectile_settings
 
         ob = context.object
-        if (ob and ob.projectile_props.is_projectile):
+        if ob and ob.projectile_props.is_projectile:
             row = layout.row()
             if(len([object for object in context.selected_objects if object.projectile_props.is_projectile])) > 1:
                 row.operator('rigidbody.projectile_remove_object', text="Remove Objects")
             else:
                 row.operator('rigidbody.projectile_remove_object')
-
-            if not settings.auto_update:
-                row = layout.row()
-                row.operator('rigidbody.projectile_launch')
 
         else:
             row = layout.row()
@@ -81,75 +77,31 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
             else:
                 row.operator('rigidbody.projectile_add_object')
 
-
-class PHYSICS_PT_projectile_initial_settings(bpy.types.Panel):
-    bl_label = "Initial Settings"
-    bl_parent_id = "PHYSICS_PT_projectile"
-    bl_category = "Physics"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    @classmethod
-    def poll(self, context):
-        if context.object and context.object.projectile_props.is_projectile:
-            return True
-        return False
-
-    def draw(self, context):
-        layout = self.layout
-        layout.use_property_split = True
-        object = context.object
-
-        row = layout.row()
-        row.prop(object.projectile_props, 'start_frame')
-
-        row = layout.row()
-        row.prop(object.projectile_props, 'start_hidden')
-
-        row = layout.row()
-        row.prop(object.projectile_props, 's')
-
-        row = layout.row()
-        row.prop(object.projectile_props, 'r')
-
-        row = layout.row()
-        row.operator('rigidbody.projectile_apply_transforms')
-
-
-class PHYSICS_PT_projectile_velocity_settings(bpy.types.Panel):
-    bl_label = "Velocity Settings"
-    bl_parent_id = "PHYSICS_PT_projectile"
-    bl_category = "Physics"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-
-    @classmethod
-    def poll(self, context):
-        if context.object and context.object.projectile_props.is_projectile:
-            return True
-        return False
-
-    def draw(self, context):
-        projectile_settings = context.scene.projectile_settings
-        layout = self.layout
-        layout.use_property_split = True
-        object = context.object
-
-        row = layout.row()
-        row.prop(context.scene.projectile_settings, 'spherical')
-
-        if projectile_settings.spherical:
-            col = layout.column(align=True)
-            col.prop(object.projectile_props, 'radius')
-            col.prop(object.projectile_props, 'incline')
-            col.prop(object.projectile_props, 'azimuth')
-        else:
+        if ob and ob.projectile_props.is_projectile:
             row = layout.row()
-            row.prop(object.projectile_props, 'v')
+            row.operator('rigidbody.projectile_launch')
 
-        row = layout.row()
-        row.prop(object.projectile_props, 'w')
+            col = layout.column(align=True)
+            col.prop(ob.projectile_props, 'start_frame')
+            col.prop(ob.projectile_props, 'end_frame')
+
+            row = layout.row()
+            row.prop(ob.projectile_props, 'instance_count')
+
+            row = layout.row()
+            row.prop(ob.projectile_props, 'start_hidden')
+
+            if settings.spherical:
+                col = layout.column(align=True)
+                col.prop(ob.projectile_props, 'radius')
+                col.prop(ob.projectile_props, 'incline')
+                col.prop(ob.projectile_props, 'azimuth')
+            else:
+                row = layout.row()
+                row.prop(ob.projectile_props, 'v')
+
+            row = layout.row()
+            row.prop(ob.projectile_props, 'w')
 
 
 class PHYSICS_PT_projectile_settings(bpy.types.Panel):
@@ -174,13 +126,10 @@ class PHYSICS_PT_projectile_settings(bpy.types.Panel):
         settings = context.scene.projectile_settings
 
         row = layout.row()
+        row.prop(settings, 'spherical')
+
+        row = layout.row()
         row.prop(settings, "quality", expand=True)
-
-        row = layout.row()
-        row.prop(settings, "auto_update")
-
-        row = layout.row()
-        row.prop(settings, "auto_play")
 
         row = layout.row()
         row.prop(settings, 'draw_trajectories')
@@ -188,8 +137,6 @@ class PHYSICS_PT_projectile_settings(bpy.types.Panel):
 
 classes = (
     PHYSICS_PT_projectile,
-    PHYSICS_PT_projectile_initial_settings,
-    PHYSICS_PT_projectile_velocity_settings,
     PHYSICS_PT_projectile_settings,
 )
 

@@ -27,8 +27,6 @@ bl_info = {
 	"category": "Physics"
 }
 
-# It might be cool to have a one-time handler for autoplayback
-
 import bpy
 import gpu
 from gpu_extras.batch import batch_for_shader
@@ -40,8 +38,6 @@ import math
 def apply_transforms(context):
 	for object in context.selected_objects:
 		if object.projectile_props.is_projectile:
-			# Setting r and s with auto update changes the second setting
-			# Store for now
 			location = object.location.copy()
 			rotation = object.rotation_euler.copy()
 			object.projectile_props.s = location
@@ -232,18 +228,6 @@ def ui_prop_change_handler(*args):
 		for area in bpy.context.screen.areas:
 			if area.type == 'VIEW_3D':
 				area.tag_redraw()
-
-	# run operator for each projectile object
-	active = bpy.context.view_layer.objects.active
-
-	for object in bpy.context.view_layer.objects:
-		if object.projectile_props.is_projectile:
-			bpy.context.view_layer.objects.active = object
-			if bpy.context.scene.projectile_settings.auto_update:
-				bpy.ops.rigidbody.projectile_launch()
-
-	bpy.context.view_layer.objects.active = active
-
 
 def subscribe_to_rna_props(scene):
 	bpy.types.Scene.props_msgbus_handler = object()
