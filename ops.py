@@ -34,8 +34,14 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
     def set_instance_object(self, ob, instance):
         ob.projectile_props["instance_object"] = instance
 
+    def set_instances_collection(self, ob, collection):
+        ob.projectile_props["instances_collection"] = collection
+
     def execute(self, context):
         ob = context.object
+
+        # Set object as rigid body
+        bpy.ops.rigidbody.object_add()
 
         # Get parent instance collection
         projectile_collection = utils.get_projectile_collection()
@@ -43,14 +49,17 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
 
         projectile_collection.children.link(instances_collection)
 
+        # Create empty
         empty = bpy.data.objects.new(f"emitter_{ob.name}", None)
         empty.projectile_props.is_projectile = True
+        empty.location = ob.location
 
         # Add empty to active collection
         context.collection.objects.link(empty)
 
-        # Set instance object
+        # Set instance object and collection
         self.set_instance_object(empty, ob)
+        self.set_instances_collection(empty, instances_collection)
 
         # Remove instance object (reference is stored in empty projectile props)
         utils.unlink_object_from_all_collections(ob)
@@ -71,6 +80,11 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
             return ob.projectile_props["instance_object"]
         return None
 
+    def get_instances_collection(self, ob):
+        if "instances_collection" in ob.projectile_props:
+            return ob.projectile_props["instances_collection"]
+        return None
+
     @classmethod
     def poll(cls, context):
         ob = context.object
@@ -80,6 +94,11 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
         empty = context.object
 
         ob = self.get_instance_object(empty)
+        collection = self.get_instances_collection(empty)
+
+        utils.empty_collection(collection)
+
+        bpy.data.collections.remove(collection)
 
         # Remove empty
         bpy.data.objects.remove(empty, do_unlink=True)
@@ -90,44 +109,55 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
         # Set object as active
         context.view_layer.objects.active = ob
 
+        # Remove rigid body from object
+        bpy.ops.rigidbody.object_remove()
+
+        # Remove instances collection if empty
+        projectile_collection = utils.get_projectile_collection()
+        if not len(projectile_collection.children):
+            bpy.data.collections.remove(projectile_collection)
+
         return {'FINISHED'}
 
+def change_frame(context, offset):
+    new_frame = context.scene.frame_current + offset
+    context.scene.frame_set(new_frame)
 
-def launch_instance(ob, properties, settings):
+def launch_instance(ob, properties, settings, frame, empty):
     ob.animation_data_clear()
     ob.hide_viewport = False
     ob.hide_render = False
 
     # Set start frame
-    if bpy.context.scene.frame_start > properties.start_frame:
-        properties.start_frame = bpy.context.scene.frame_start
+    bpy.context.scene.frame_set(frame)
 
-    bpy.context.scene.frame_current = properties.start_frame
-
-    displacement = utils.kinematic_displacement(properties.s, properties.v, 2)
-    displacement_rotation = utils.kinematic_rotation(properties.r, properties.w, 2)
+    displacement = utils.kinematic_displacement(empty.location, properties.v, 2)
+    displacement_rotation = utils.kinematic_rotation(empty.rotation_euler, properties.w, 2)
 
     # Hide object
     if properties.start_hidden:
-        bpy.context.scene.frame_current -= 1
+        change_frame(bpy.context, -1)
+        # bpy.context.scene.frame_current -= 1
         ob.hide_viewport = True
         ob.hide_render = True
         ob.keyframe_insert('hide_viewport')
         ob.keyframe_insert('hide_render')
 
-        bpy.context.scene.frame_current += 1
+        change_frame(bpy.context, 1)
+        # bpy.context.scene.frame_current += 1
         ob.hide_viewport = False
         ob.hide_render = False
         ob.keyframe_insert('hide_viewport')
         ob.keyframe_insert('hide_render')
 
     # Set start keyframe
-    ob.location = properties.s
-    ob.rotation_euler = properties.r
+    ob.location = empty.location
+    ob.rotation_euler = empty.rotation_euler
     ob.keyframe_insert('location')
     ob.keyframe_insert('rotation_euler')
 
-    bpy.context.scene.frame_current += 2
+    change_frame(bpy.context, 2)
+    # bpy.context.scene.frame_current += 2
 
     # Set end keyframe
     ob.location = displacement
@@ -139,7 +169,8 @@ def launch_instance(ob, properties, settings):
     ob.rigid_body.kinematic = True
     ob.keyframe_insert('rigid_body.kinematic')
 
-    bpy.context.scene.frame_current += 1
+    change_frame(bpy.context, 1)
+    # bpy.context.scene.frame_current += 1
 
     # Set unanimated checkbox
     ob.rigid_body.kinematic = False
@@ -151,19 +182,63 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
     bl_label = "Launch!"
     bl_description = "Launch the selected object!"
 
+    def get_instance_object(self, empty):
+        return empty.projectile_props["instance_object"]
+
+    def get_instances_collection(self, ob):
+        if "instances_collection" in ob.projectile_props:
+            return ob.projectile_props["instances_collection"]
+        return None
+
     @classmethod
     def poll(cls, context):
         ob = context.object
         return ob and ob.projectile_props.is_projectile
 
+    def create_instances(self, number, ob, collection):
+        PADDING = 4
+
+        for i in range(number):
+            name = f"{ob.name}_instance_{str(i).zfill(PADDING)}"
+            copy = bpy.data.objects.new(name, ob.data)
+
+            collection.objects.link(copy)
+
+            bpy.context.view_layer.objects.active = copy
+            bpy.ops.rigidbody.object_add()
+
+
     def execute(self, context):
-        object = context.object
-        properties = object.projectile_props
-        settings = bpy.context.scene.projectile_settings
+        empty = context.object
+        properties = empty.projectile_props
+        settings = context.scene.projectile_settings
 
-        launch_instance(object, properties, settings)
+        ob = self.get_instance_object(empty)
+        collection = self.get_instances_collection(empty)
 
+        # Max instances is the number of frames in the range
+        start = properties.start_frame
+        end = properties.end_frame
+        frames = end - start
+
+        number = min(frames, properties.instance_count)
+
+        step = frames / number
+
+        utils.empty_collection(collection)
+        # Create instances
+        self.create_instances(number, ob, collection)
+
+        i = start * 1.0
+        for o in collection.objects:
+            frame = int(i)
+            launch_instance(o, properties, settings, frame, empty)
+            i += step
+
+        # Reset to ending frame
         bpy.context.scene.frame_current = 0
+
+        bpy.context.view_layer.objects.active = empty
 
         return {'FINISHED'}
 

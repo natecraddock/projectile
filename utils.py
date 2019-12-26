@@ -69,6 +69,10 @@ def unlink_object_from_all_collections(ob):
         if name in collection.objects:
             collection.objects.unlink(ob)
 
+def empty_collection(collection):
+    for ob in collection.objects:
+        bpy.data.objects.remove(ob, do_unlink=True)
+
 def get_projectile_collection():
     if 'projectile_collection' not in bpy.context.scene.projectile_settings \
         or bpy.context.scene.projectile_settings['projectile_collection'] is None:
@@ -187,15 +191,17 @@ def cartesian_to_spherical(v):
     return radius, incline, azimuth
 
 def calculate_trajectory(object):
+    s = object.location
+
     # Generate coordinates
     cast = []
     coordinates = []
-    v = kinematic_displacement_expected(object.projectile_props.s, object.projectile_props.v, 0)
+    v = kinematic_displacement_expected(s, object.projectile_props.v, 0)
     coord = mathutils.Vector((v.x, v.y, v.z))
     coordinates.append(coord)
 
     for frame in range(1, bpy.context.scene.frame_end):
-        v = kinematic_displacement_expected(object.projectile_props.s, object.projectile_props.v, frame)
+        v = kinematic_displacement_expected(s, object.projectile_props.v, frame)
         coord = mathutils.Vector((v.x, v.y, v.z))
 
         # Get distance between previous and current position
@@ -213,7 +219,7 @@ def calculate_trajectory(object):
         coordinates.append(coord)
 
     if not cast[0]:
-        v = kinematic_displacement_expected(object.projectile_props.s, object.projectile_props.v, bpy.context.scene.frame_end)
+        v = kinematic_displacement_expected(s, object.projectile_props.v, bpy.context.scene.frame_end)
         coord = mathutils.Vector((v.x, v.y, v.z))
         coordinates.append(coord)
 
