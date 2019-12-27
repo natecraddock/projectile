@@ -52,15 +52,6 @@ def ui_prop_change_handler(*args):
 
     bpy.context.view_layer.objects.active = active
 
-# Apply Transforms
-def apply_transforms(context):
-    for object in context.selected_objects:
-        if object.projectile_props.is_projectile:
-            location = object.location.copy()
-            rotation = object.rotation_euler.copy()
-            object.projectile_props.s = location
-            object.projectile_props.r = rotation
-
 # Unlink an object from each collection it is in
 def unlink_object_from_all_collections(ob):
     name = ob.name
@@ -83,24 +74,6 @@ def get_projectile_collection():
         bpy.context.scene.projectile_settings['projectile_collection'] = projectile_collection
 
     return bpy.context.scene.projectile_settings['projectile_collection']
-
-def get_projectile_instances():
-    if 'projectile_instances' not in bpy.context.scene.projectile_settings:
-        bpy.context.scene.projectile_settings['projectile_instances'] = []
-
-    return bpy.context.scene.projectile_settings['projectile_instances'].to_list()
-
-def add_projectile_instance(ob):
-    instances = get_projectile_instances()
-    instances.append(ob)
-
-    bpy.context.scene.projectile_settings['projectile_instances'] = instances
-
-def remove_projectile_instance(ob):
-    instances = get_projectile_instances()
-    instances.remove(ob)
-
-    bpy.context.scene.projectile_settings['projectile_instances'] = instances
 
 # Returns distance between two points in space
 def distance_between_points(origin, destination):
