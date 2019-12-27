@@ -63,9 +63,9 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
         settings = context.scene.projectile_settings
 
         ob = context.object
-        if ob and ob.projectile_props.is_projectile:
+        if ob and ob.projectile_props.is_emitter:
             row = layout.row()
-            if(len([object for object in context.selected_objects if object.projectile_props.is_projectile])) > 1:
+            if(len([object for object in context.selected_objects if object.projectile_props.is_emitter])) > 1:
                 row.operator('rigidbody.projectile_remove_object', text="Remove Objects")
             else:
                 row.operator('rigidbody.projectile_remove_object')
@@ -77,7 +77,7 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
             else:
                 row.operator('rigidbody.projectile_add_object')
 
-        if ob and ob.projectile_props.is_projectile:
+        if ob and ob.projectile_props.is_emitter:
             row = layout.row()
             row.operator('rigidbody.projectile_launch')
 

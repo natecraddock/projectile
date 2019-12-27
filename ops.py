@@ -29,7 +29,7 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         ob = context.object
-        return ob and ob.type == 'MESH' and not ob.projectile_props.is_projectile
+        return ob and ob.type == 'MESH' and not ob.projectile_props.is_emitter
 
     def set_instance_object(self, ob, instance):
         ob.projectile_props["instance_object"] = instance
@@ -51,7 +51,7 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
 
         # Create empty
         empty = bpy.data.objects.new(f"emitter_{ob.name}", None)
-        empty.projectile_props.is_projectile = True
+        empty.projectile_props.is_emitter = True
         empty.location = ob.location
 
         # Add empty to active collection
@@ -90,7 +90,7 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         ob = context.object
-        return ob and ob.projectile_props.is_projectile
+        return ob and ob.projectile_props.is_emitter
 
     def execute(self, context):
         empty = context.object
@@ -242,7 +242,7 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
     @classmethod
     def poll(cls, context):
         ob = context.object
-        return ob and ob.projectile_props.is_projectile
+        return ob and ob.projectile_props.is_emitter
 
     def create_instances(self, number, ob, collection):
         PADDING = 4

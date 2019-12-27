@@ -45,7 +45,7 @@ def ui_prop_change_handler(*args):
     active = bpy.context.view_layer.objects.active
 
     for object in bpy.context.view_layer.objects:
-        if object.projectile_props.is_projectile:
+        if object.projectile_props.is_emitter:
             bpy.context.view_layer.objects.active = object
             if bpy.context.scene.projectile_settings.auto_update:
                 bpy.ops.rigidbody.projectile_launch()
@@ -199,9 +199,9 @@ def calculate_trajectory(object):
     return coordinates
 
 # Functions for draw handlers
-# Draws trajectories for all projectile objects
+# Draws trajectories selected emitter
 def draw_trajectory():
-    objects = [object for object in bpy.data.objects if object.projectile_props.is_projectile]
+    objects = [object for object in bpy.data.objects if object.projectile_props.is_emitter]
 
     # Generate a list of all coordinates for all trajectories
     coordinates = []
@@ -209,7 +209,6 @@ def draw_trajectory():
         coordinates += calculate_trajectory(object)
 
     # Draw all trajectories
-    # TODO: Fix shader being tied to annotations
     shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
     batch = batch_for_shader(shader, 'LINES', {"pos": coordinates})
 
@@ -231,7 +230,7 @@ def velocity_callback(self, context):
 
     ob = context.object
 
-    if ob and ob.projectile_props.is_projectile:
+    if ob and ob.projectile_props.is_emitter:
         radius, incline, azimuth = cartesian_to_spherical(ob.projectile_props.v)
 
         FROM_UI = True
@@ -251,7 +250,7 @@ def spherical_callback(self, context):
 
     ob = context.object
 
-    if ob and ob.projectile_props.is_projectile:
+    if ob and ob.projectile_props.is_emitter:
         radius = ob.projectile_props.radius
         incline = ob.projectile_props.incline
         azimuth = ob.projectile_props.azimuth

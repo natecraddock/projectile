@@ -58,7 +58,7 @@ def unsubscribe_to_rna_props():
 
 
 class ProjectileObject(bpy.types.PropertyGroup):
-    is_projectile: bpy.props.BoolProperty(
+    is_emitter: bpy.props.BoolProperty(
         name="Is Projectile",
         description="Is this object a projectile (for internal use)",
         default=False
