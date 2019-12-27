@@ -66,6 +66,8 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
 
         # Set empty as active object
         context.view_layer.objects.active = empty
+        empty.select_set(True)
+        ob.select_set(False)
 
         return {'FINISHED'}
 
@@ -123,6 +125,17 @@ def change_frame(context, offset):
     new_frame = context.scene.frame_current + offset
     context.scene.frame_set(new_frame)
 
+def get_emitter_velocity(context, frame, empty):
+    frame_rate = bpy.context.scene.render.fps
+
+    change_frame(context, -1)
+    loc_a = empty.matrix_world.to_translation()
+
+    context.scene.frame_set(frame)
+    loc_b = empty.matrix_world.to_translation()
+
+    return (loc_b - loc_a) * frame_rate
+
 def launch_instance(ob, properties, settings, frame, empty):
     ob.animation_data_clear()
     ob.hide_viewport = False
@@ -131,8 +144,14 @@ def launch_instance(ob, properties, settings, frame, empty):
     # Set start frame
     bpy.context.scene.frame_set(frame)
 
-    displacement = utils.kinematic_displacement(empty.location, properties.v, 2)
-    displacement_rotation = utils.kinematic_rotation(empty.rotation_euler, properties.w, 2)
+    # Get emitter velocity
+    e_vel = get_emitter_velocity(bpy.context, frame, empty)
+
+    # Calculate velocity
+    velocity = properties.v + e_vel
+
+    displacement = utils.kinematic_displacement(empty.matrix_world.to_translation(), velocity, 2)
+    displacement_rotation = utils.kinematic_rotation(empty.matrix_world.to_euler(), properties.w, 2)
 
     # Hide object
     if properties.start_hidden:
@@ -151,8 +170,8 @@ def launch_instance(ob, properties, settings, frame, empty):
         ob.keyframe_insert('hide_render')
 
     # Set start keyframe
-    ob.location = empty.location
-    ob.rotation_euler = empty.rotation_euler
+    ob.location = empty.matrix_world.to_translation()
+    ob.rotation_euler = empty.matrix_world.to_euler()
     ob.keyframe_insert('location')
     ob.keyframe_insert('rotation_euler')
 
