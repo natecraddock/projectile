@@ -85,14 +85,6 @@ class ProjectileObject(bpy.types.PropertyGroup):
         options={'HIDDEN'},
     )
 
-    r: bpy.props.FloatVectorProperty(
-        name="Rotation",
-        description="Initial rotation for the object",
-        precision=4,
-        options={'HIDDEN'},
-        subtype='EULER',
-    )
-
     v: bpy.props.FloatVectorProperty(
         name="Velocity",
         description="Velocity for the object",
