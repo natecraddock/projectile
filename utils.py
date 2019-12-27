@@ -80,11 +80,11 @@ def distance_between_points(origin, destination):
     return math.sqrt(math.pow(destination.x - origin.x, 2) + math.pow(destination.y - origin.y, 2) + math.pow(destination.z - origin.z, 2))
 
 # Raycast from origin to destination (Defaults to (nearly) infinite distance)
-def raycast(origin, destination, distance=1.70141e+38):
+def raycast(context, origin, destination, distance=1.70141e+38):
     direction = (destination - origin).normalized()
-    view_layer = bpy.context.view_layer
+    view_layer = context.view_layer
 
-    cast = bpy.context.scene.ray_cast(view_layer, origin, direction, distance=distance)
+    cast = context.scene.ray_cast(view_layer, origin, direction, distance=distance)
     return cast
 
 # Kinematic Equation to find displacement over time
@@ -163,7 +163,7 @@ def cartesian_to_spherical(v):
 
     return radius, incline, azimuth
 
-def calculate_trajectory(object):
+def calculate_trajectory(context, object):
     s = object.location
 
     # Generate coordinates
@@ -173,7 +173,7 @@ def calculate_trajectory(object):
     coord = mathutils.Vector((v.x, v.y, v.z))
     coordinates.append(coord)
 
-    for frame in range(1, bpy.context.scene.frame_end):
+    for frame in range(1, context.scene.frame_end):
         v = kinematic_displacement_expected(s, object.projectile_props.v, frame)
         coord = mathutils.Vector((v.x, v.y, v.z))
 
@@ -181,7 +181,7 @@ def calculate_trajectory(object):
         distance = distance_between_points(coordinates[-1], coord)
 
         # Check if anything is in the way
-        cast = raycast(coordinates[-1], coord, distance)
+        cast = raycast(context, coordinates[-1], coord, distance)
 
         # If so, set that position as final position (avoid self intersections)
         if cast[0] and cast[4] is not object:
@@ -192,21 +192,23 @@ def calculate_trajectory(object):
         coordinates.append(coord)
 
     if not cast[0]:
-        v = kinematic_displacement_expected(s, object.projectile_props.v, bpy.context.scene.frame_end)
+        v = kinematic_displacement_expected(s, object.projectile_props.v, context.scene.frame_end)
         coord = mathutils.Vector((v.x, v.y, v.z))
         coordinates.append(coord)
 
     return coordinates
 
-# Functions for draw handlers
-# Draws trajectories selected emitter
+# Draws trajectories from all emitters
 def draw_trajectory():
-    objects = [object for object in bpy.data.objects if object.projectile_props.is_emitter]
+    context = bpy.context
+    data = bpy.data
+
+    objects = [object for object in data.objects if object.projectile_props.is_emitter]
 
     # Generate a list of all coordinates for all trajectories
     coordinates = []
     for object in objects:
-        coordinates += calculate_trajectory(object)
+        coordinates += calculate_trajectory(context, object)
 
     # Draw all trajectories
     shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
