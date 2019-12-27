@@ -109,6 +109,14 @@ class ProjectileObject(bpy.types.PropertyGroup):
         options={'HIDDEN'},
     )
 
+    lifetime: bpy.props.IntProperty(
+        name="Lifetime",
+        description="Lifetime of the rigidbody",
+        default=0,
+        min=0,
+        options={'HIDDEN'}
+    )
+
     radius: bpy.props.FloatProperty(
         name="Radius",
         description="Radius (magnitude) of velocity",

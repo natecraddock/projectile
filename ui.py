@@ -91,6 +91,9 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
             row = layout.row()
             row.prop(ob.projectile_props, 'start_hidden')
 
+            row = layout.row()
+            row.prop(ob.projectile_props, 'lifetime')
+
             if settings.spherical:
                 col = layout.column(align=True)
                 col.prop(ob.projectile_props, 'radius')

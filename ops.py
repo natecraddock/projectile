@@ -121,6 +121,31 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
 
         return {'FINISHED'}
 
+def rigid_body_set_active(ob, active, kinematic=True):
+    if active:
+        ob.rigid_body.collision_collections[0] = True
+        ob.rigid_body.collision_collections[19] = False
+        ob.rigid_body.kinematic = False
+    else:
+        ob.rigid_body.collision_collections[0] = False
+        ob.rigid_body.collision_collections[19] = True
+        ob.rigid_body.kinematic = True
+
+    if kinematic:
+        ob.keyframe_insert('rigid_body.kinematic')
+    ob.keyframe_insert('rigid_body.collision_collections')
+
+def object_set_visible(ob, visible):
+    if visible:
+        ob.hide_viewport = False
+        ob.hide_render = False
+    else:
+        ob.hide_viewport = True
+        ob.hide_render = True
+
+    ob.keyframe_insert('hide_viewport')
+    ob.keyframe_insert('hide_render')
+
 def change_frame(context, offset):
     new_frame = context.scene.frame_current + offset
     context.scene.frame_set(new_frame)
@@ -153,21 +178,16 @@ def launch_instance(ob, properties, settings, frame, empty):
     displacement = utils.kinematic_displacement(empty.matrix_world.to_translation(), velocity, 2)
     displacement_rotation = utils.kinematic_rotation(empty.matrix_world.to_euler(), properties.w, 2)
 
+    change_frame(bpy.context, -1)
+
     # Hide object
     if properties.start_hidden:
-        change_frame(bpy.context, -1)
-        # bpy.context.scene.frame_current -= 1
-        ob.hide_viewport = True
-        ob.hide_render = True
-        ob.keyframe_insert('hide_viewport')
-        ob.keyframe_insert('hide_render')
+        object_set_visible(ob, False)
 
-        change_frame(bpy.context, 1)
-        # bpy.context.scene.frame_current += 1
-        ob.hide_viewport = False
-        ob.hide_render = False
-        ob.keyframe_insert('hide_viewport')
-        ob.keyframe_insert('hide_render')
+    change_frame(bpy.context, 1)
+
+    if properties.start_hidden:
+        object_set_visible(ob, True)
 
     # Set start keyframe
     ob.location = empty.matrix_world.to_translation()
@@ -176,7 +196,6 @@ def launch_instance(ob, properties, settings, frame, empty):
     ob.keyframe_insert('rotation_euler')
 
     change_frame(bpy.context, 2)
-    # bpy.context.scene.frame_current += 2
 
     # Set end keyframe
     ob.location = displacement
@@ -185,15 +204,26 @@ def launch_instance(ob, properties, settings, frame, empty):
     ob.keyframe_insert('rotation_euler')
 
     # Set animated checkbox
-    ob.rigid_body.kinematic = True
-    ob.keyframe_insert('rigid_body.kinematic')
+    rigid_body_set_active(ob, False)
+    # ob.rigid_body.kinematic = True
+    # ob.keyframe_insert('rigid_body.kinematic')
 
     change_frame(bpy.context, 1)
-    # bpy.context.scene.frame_current += 1
 
     # Set unanimated checkbox
-    ob.rigid_body.kinematic = False
-    ob.keyframe_insert('rigid_body.kinematic')
+    rigid_body_set_active(ob, True)
+    # ob.rigid_body.kinematic = False
+    # ob.keyframe_insert('rigid_body.kinematic')
+
+    if properties.lifetime > 0:
+        bpy.context.scene.frame_set(frame)
+        change_frame(bpy.context, properties.lifetime)
+
+        rigid_body_set_active(ob, True)
+        object_set_visible(ob, True)
+        change_frame(bpy.context, 1)
+        rigid_body_set_active(ob, False)
+        object_set_visible(ob, False)
 
 # TODO: Rename?
 class PHYSICS_OT_projectile_launch(bpy.types.Operator):
