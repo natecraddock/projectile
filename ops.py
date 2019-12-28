@@ -69,6 +69,8 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
         empty.select_set(True)
         ob.select_set(False)
 
+        bpy.ops.rigidbody.projectile_launch()
+
         return {'FINISHED'}
 
 
