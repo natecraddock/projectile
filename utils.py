@@ -163,18 +163,31 @@ def cartesian_to_spherical(v):
 
     return radius, incline, azimuth
 
-def calculate_trajectory(context, object):
-    s = object.location
+# Custom getattr for using with Blender dict attributes
+def get_attr(ob, name, default):
+    if name in ob:
+        return ob[name]
+    return default
+
+# Check if an object is emitted from a given emitter
+def is_emitter_instance(emitter, ob):
+    emitter_prop = get_attr(ob.projectile_props, "emitter", False)
+    if emitter_prop:
+        return emitter_prop == emitter
+    return False
+
+def calculate_trajectory(context, emitter):
+    s = emitter.location
 
     # Generate coordinates
     cast = []
     coordinates = []
-    v = kinematic_displacement_expected(s, object.projectile_props.v, 0)
+    v = kinematic_displacement_expected(s, emitter.projectile_props.v, 0)
     coord = mathutils.Vector((v.x, v.y, v.z))
     coordinates.append(coord)
 
     for frame in range(1, context.scene.frame_end):
-        v = kinematic_displacement_expected(s, object.projectile_props.v, frame)
+        v = kinematic_displacement_expected(s, emitter.projectile_props.v, frame)
         coord = mathutils.Vector((v.x, v.y, v.z))
 
         # Get distance between previous and current position
@@ -183,8 +196,8 @@ def calculate_trajectory(context, object):
         # Check if anything is in the way
         cast = raycast(context, coordinates[-1], coord, distance)
 
-        # If so, set that position as final position (avoid self intersections)
-        if cast[0] and cast[4] is not object:
+        # If so, set that position as final position
+        if cast[0] and not is_emitter_instance(emitter, cast[4]):
             coordinates.append(cast[1])
             break
 
@@ -192,7 +205,7 @@ def calculate_trajectory(context, object):
         coordinates.append(coord)
 
     if not cast[0]:
-        v = kinematic_displacement_expected(s, object.projectile_props.v, context.scene.frame_end)
+        v = kinematic_displacement_expected(s, emitter.projectile_props.v, context.scene.frame_end)
         coord = mathutils.Vector((v.x, v.y, v.z))
         coordinates.append(coord)
 
@@ -203,12 +216,12 @@ def draw_trajectory():
     context = bpy.context
     data = bpy.data
 
-    objects = [object for object in data.objects if object.projectile_props.is_emitter]
+    emitters = [ob for ob in data.objects if ob.projectile_props.is_emitter]
 
     # Generate a list of all coordinates for all trajectories
     coordinates = []
-    for object in objects:
-        coordinates += calculate_trajectory(context, object)
+    for emitter in emitters:
+        coordinates += calculate_trajectory(context, emitter)
 
     # Draw all trajectories
     shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')

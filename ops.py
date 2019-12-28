@@ -244,12 +244,15 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
         ob = context.object
         return ob and ob.projectile_props.is_emitter
 
-    def create_instances(self, number, ob, collection):
+    def create_instances(self, number, ob, collection, empty):
         PADDING = 4
 
         for i in range(number):
             name = f"{ob.name}_instance_{str(i).zfill(PADDING)}"
             copy = bpy.data.objects.new(name, ob.data)
+
+            # Store a link to the emitter in each instance
+            copy.projectile_props["emitter"] = empty
 
             collection.objects.link(copy)
 
@@ -276,7 +279,7 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
 
         utils.empty_collection(collection)
         # Create instances
-        self.create_instances(number, ob, collection)
+        self.create_instances(number, ob, collection, empty)
 
         i = start * 1.0
         for o in collection.objects:
