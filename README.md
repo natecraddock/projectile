@@ -15,7 +15,8 @@ Projectile is located in the Physics tab of the sidebar
 - Click **Remove Object** to remove an object from projectile calculations.
   - *Both **Add Object** and **Remove Object** support multiple objects in selection.*
 - Set the **Initial Location** by changing the location sliders.
-- Set the **Velocity** component for each axis.
+- Set the **Velocity** component for each axis. The velocity can be set in either Spherical or Cartesian coordinates.
+- The **Angular Velocity** can also be set if desired.
 - Then click **Launch!**, then you can play the animation and see the results. (Launch is only available if **Auto Update** is not checked.)
 
 ### Projectile Settings
