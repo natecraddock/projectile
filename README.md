@@ -1,6 +1,6 @@
 # Projectile
 
-### [Download Projectile](https://raw.githubusercontent.com/natecraddock/projectile/master/projectile.py)
+### [Download Projectile](https://github.com/natecraddock/projectile/releases/download/v1.0/projectile.py)
 Right-click and save link as a Python file. Then install `projectile.py` in Blender.
 
 ### Projectile features:
