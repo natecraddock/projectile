@@ -150,7 +150,7 @@ class Instance:
         self.start_frame = start_frame
         self.end_frame = start_frame + self.lifetime
 
-        self.v += self.get_emitter_velocity(bpy.context, start_frame)
+        self.velocity = self.get_emitter_velocity(bpy.context, start_frame) + self.v
 
     def activate(self):
         self.set_visible(True)
@@ -161,7 +161,7 @@ class Instance:
             change_frame(bpy.context, 1)
 
     def launch(self):
-        displacement = utils.kinematic_displacement(self.emitter.matrix_world.to_translation(), self.v, 2)
+        displacement = utils.kinematic_displacement(self.emitter.matrix_world.to_translation(), self.velocity, 2)
         displacement_rotation = utils.kinematic_rotation(self.emitter.matrix_world.to_euler(), self.w, 2)
 
         # Set start keyframe
