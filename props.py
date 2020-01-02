@@ -153,11 +153,13 @@ def set_quality_callback(self, context):
     utils.set_quality(context)
 
 class ProjectileSettings(bpy.types.PropertyGroup):
-    draw_trajectories: bpy.props.BoolProperty(
+    draw_trajectories: bpy.props.EnumProperty(
         name="Draw Trajectories",
-        description="Draw projectile trajectories in the 3D view",
+        items=[("all", "All", "Draw trajectories for all emitters"),
+                ("selected", "Selected", "Draw trajectories for selected emitters"),
+                ("none", "None", "Do not draw trajectories")],
+        default='selected',
         options={'HIDDEN'},
-        default=True,
         update=draw_trajectories_callback
     )
 

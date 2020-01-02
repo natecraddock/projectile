@@ -127,7 +127,7 @@ class PHYSICS_PT_projectile_settings(bpy.types.Panel):
         row.prop(settings, "quality", expand=True)
 
         row = layout.row()
-        row.prop(settings, 'draw_trajectories')
+        row.prop(settings, 'draw_trajectories', expand=True)
 
 
 classes = (

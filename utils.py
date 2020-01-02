@@ -26,7 +26,7 @@ from . import ui
 
 
 def toggle_trajectory_drawing():
-    if bpy.context.scene.projectile_settings.draw_trajectories:
+    if bpy.context.scene.projectile_settings.draw_trajectories in {'all', 'selected'}:
         ui.PHYSICS_OT_projectle_draw.add_handler()
     else:
         ui.PHYSICS_OT_projectle_draw.remove_handler()
@@ -215,8 +215,13 @@ def calculate_trajectory(context, emitter):
 def draw_trajectory():
     context = bpy.context
     data = bpy.data
+    draw_trajectories = context.scene.projectile_settings.draw_trajectories
 
-    emitters = [ob for ob in data.objects if ob.projectile_props.is_emitter]
+    if draw_trajectories == 'all':
+        emitters = [ob for ob in data.objects if ob.projectile_props.is_emitter]
+    else:
+        # Only draw selected
+        emitters = [ob for ob in context.selected_objects if ob.projectile_props.is_emitter]
 
     # Generate a list of all coordinates for all trajectories
     coordinates = []
