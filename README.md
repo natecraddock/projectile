@@ -1,7 +1,7 @@
 # Projectile
 
-### [Download Projectile](https://raw.githubusercontent.com/natecraddock/projectile/master/projectile.py)
-Right-click and save link as a Python file. Then install `projectile.py` in Blender.
+### [Download Projectile](https://github.com/natecraddock/projectile/archive/projectile-instancing.zip)
+Click the link and save the .zip. Install the entire .zip file as an addon.
 
 ### Projectile features:
 - **Trajectory Tracing:** Projectile draws trajectories for each object so you can get an idea of how the object will interact with the scene.
@@ -11,18 +11,16 @@ Right-click and save link as a Python file. Then install `projectile.py` in Blen
 
 ## Usage
 Projectile is located in the Physics tab of the sidebar
-- Click **Add Object** to set an object as a Projectile object. It will set it to be an active rigidbody object, and will set the **Initial Location** and **Initial Rotation** based on any transforms the object has.
-- Click **Remove Object** to remove an object from projectile calculations.
-  - *Both **Add Object** and **Remove Object** support multiple objects in selection.*
-- Set the **Initial Location** by changing the location sliders.
+- Click **Add Object as Emitter** to set an object as a Projectile object. The launch operator will be applied and an empty (emitter) will be created at the same location as the object.
+- Click **Remove Object** with an active emitter to remove all instances.
 - Set the **Velocity** component for each axis.
-- Then click **Launch!**, then you can play the animation and see the results. (Launch is only available if **Auto Update** is not checked.)
+- **Number** is to set the number of instances. (Default is 1)
+- **Lifetime** is to set the lifetime of the instances. 0 means the instances will not be destroyed.
+- Then click **Launch!**, then you can play the animation and see the results.
 
 ### Projectile Settings
 - Choose a **Solver Quality** to increase the physics solver quality.
-- Check **Auto Update** for the trajectory calculations to happen after each property update.
-- Check **Auto Play** to automatically start the animation player after each trajectory calculation
-- Check **Draw Trajectories** To draw trajectories in the 3D View for the active object. Trajectories are terminated at the end of the timeline, or if a collision is detected in the path.
+- **Draw Trajectories** Has options to draw all, selected, or no trajectories in the 3D View
 
 ## Blender 2.7x
 Projectile can be downloaded [here](https://github.com/natecraddock/projectile/tree/blender27x) for Blender 2.7x
