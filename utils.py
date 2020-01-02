@@ -42,15 +42,15 @@ def ui_prop_change_handler(*args):
                 area.tag_redraw()
 
     # run operator for each projectile object
-    active = bpy.context.view_layer.objects.active
+    # active = bpy.context.view_layer.objects.active
 
-    for object in bpy.context.view_layer.objects:
-        if object.projectile_props.is_emitter:
-            bpy.context.view_layer.objects.active = object
-            if bpy.context.scene.projectile_settings.auto_update:
-                bpy.ops.rigidbody.projectile_launch()
+    # for object in bpy.context.view_layer.objects:
+    #     if object.projectile_props.is_emitter:
+    #         bpy.context.view_layer.objects.active = object
+    #         if bpy.context.scene.projectile_settings.auto_update:
+    #             bpy.ops.rigidbody.projectile_launch()
 
-    bpy.context.view_layer.objects.active = active
+    # bpy.context.view_layer.objects.active = active
 
 # Unlink an object from each collection it is in
 def unlink_object_from_all_collections(ob):

@@ -123,111 +123,113 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
 
         return {'FINISHED'}
 
-def rigid_body_set_active(ob, active, kinematic=True):
-    if active:
-        ob.rigid_body.collision_collections[0] = True
-        ob.rigid_body.collision_collections[19] = False
-        ob.rigid_body.kinematic = False
-    else:
-        ob.rigid_body.collision_collections[0] = False
-        ob.rigid_body.collision_collections[19] = True
-        ob.rigid_body.kinematic = True
-
-    if kinematic:
-        ob.keyframe_insert('rigid_body.kinematic')
-    ob.keyframe_insert('rigid_body.collision_collections')
-
-def object_set_visible(ob, visible):
-    if visible:
-        ob.hide_viewport = False
-        ob.hide_render = False
-    else:
-        ob.hide_viewport = True
-        ob.hide_render = True
-
-    ob.keyframe_insert('hide_viewport')
-    ob.keyframe_insert('hide_render')
 
 def change_frame(context, offset):
     new_frame = context.scene.frame_current + offset
     context.scene.frame_set(new_frame)
 
-def get_emitter_velocity(context, frame, empty):
-    frame_rate = bpy.context.scene.render.fps
+class Instance:
+    """ A projectile instance """
 
-    change_frame(context, -1)
-    loc_a = empty.matrix_world.to_translation()
+    def __str__(self):
+        return f"{self.ob.name} start:{self.start_frame} end:{self.end_frame}"
 
-    context.scene.frame_set(frame)
-    loc_b = empty.matrix_world.to_translation()
+    def __init__(self, ob, emitter):
+        props = emitter.projectile_props
 
-    return (loc_b - loc_a) * frame_rate
+        self.ob = ob
+        self.lifetime = props.lifetime
+        self.v = props.v.copy()
+        self.w = props.w.copy()
 
-def launch_instance(ob, properties, settings, frame, empty):
-    ob.animation_data_clear()
-    ob.hide_viewport = False
-    ob.hide_render = False
+        self.emitter = emitter
 
-    # Set start frame
-    bpy.context.scene.frame_set(frame)
+    # Set beginning location, rotation, and other properties
+    def initialize(self, start_frame):
+        self.start_hidden = self.emitter.projectile_props.start_hidden
+        self.start_frame = start_frame
+        self.end_frame = start_frame + self.lifetime
 
-    # Get emitter velocity
-    e_vel = get_emitter_velocity(bpy.context, frame, empty)
+        self.v += self.get_emitter_velocity(bpy.context, start_frame)
 
-    # Calculate velocity
-    velocity = properties.v + e_vel
+    def activate(self):
+        self.set_visible(True)
 
-    displacement = utils.kinematic_displacement(empty.matrix_world.to_translation(), velocity, 2)
-    displacement_rotation = utils.kinematic_rotation(empty.matrix_world.to_euler(), properties.w, 2)
+        if self.start_hidden:
+            change_frame(bpy.context, -1)
+            self.set_visible(False)
+            change_frame(bpy.context, 1)
 
-    change_frame(bpy.context, -1)
+    def launch(self):
+        displacement = utils.kinematic_displacement(self.emitter.matrix_world.to_translation(), self.v, 2)
+        displacement_rotation = utils.kinematic_rotation(self.emitter.matrix_world.to_euler(), self.w, 2)
 
-    # Hide object
-    if properties.start_hidden:
-        object_set_visible(ob, False)
+        # Set start keyframe
+        self.ob.location = self.emitter.matrix_world.to_translation()
+        self.ob.rotation_euler = self.emitter.matrix_world.to_euler()
+        self.ob.keyframe_insert('location')
+        self.ob.keyframe_insert('rotation_euler')
 
-    change_frame(bpy.context, 1)
+        change_frame(bpy.context, 2)
 
-    if properties.start_hidden:
-        object_set_visible(ob, True)
+        # Set end keyframe
+        self.ob.location = displacement
+        self.ob.rotation_euler = displacement_rotation
+        self.ob.keyframe_insert('location')
+        self.ob.keyframe_insert('rotation_euler')
 
-    # Set start keyframe
-    ob.location = empty.matrix_world.to_translation()
-    ob.rotation_euler = empty.matrix_world.to_euler()
-    ob.keyframe_insert('location')
-    ob.keyframe_insert('rotation_euler')
+        # Set animated checkbox
+        self.set_active(False)
 
-    change_frame(bpy.context, 2)
-
-    # Set end keyframe
-    ob.location = displacement
-    ob.rotation_euler = displacement_rotation
-    ob.keyframe_insert('location')
-    ob.keyframe_insert('rotation_euler')
-
-    # Set animated checkbox
-    rigid_body_set_active(ob, False)
-    # ob.rigid_body.kinematic = True
-    # ob.keyframe_insert('rigid_body.kinematic')
-
-    change_frame(bpy.context, 1)
-
-    # Set unanimated checkbox
-    rigid_body_set_active(ob, True)
-    # ob.rigid_body.kinematic = False
-    # ob.keyframe_insert('rigid_body.kinematic')
-
-    if properties.lifetime > 0:
-        bpy.context.scene.frame_set(frame)
-        change_frame(bpy.context, properties.lifetime)
-
-        rigid_body_set_active(ob, True)
-        object_set_visible(ob, True)
         change_frame(bpy.context, 1)
-        rigid_body_set_active(ob, False)
-        object_set_visible(ob, False)
 
-# TODO: Rename?
+        # Set unanimated checkbox
+        self.set_active(True)
+
+    def deactivate(self):
+        self.set_active(True)
+        self.set_visible(True)
+
+        change_frame(bpy.context, 1)
+
+        self.set_active(False)
+        self.set_visible(False)
+
+    def set_active(self, active):
+        if active:
+            self.ob.rigid_body.collision_collections[0] = True
+            self.ob.rigid_body.collision_collections[19] = False
+            self.ob.rigid_body.kinematic = False
+        else:
+            self.ob.rigid_body.collision_collections[0] = False
+            self.ob.rigid_body.collision_collections[19] = True
+            self.ob.rigid_body.kinematic = True
+
+        self.ob.keyframe_insert('rigid_body.kinematic')
+        self.ob.keyframe_insert('rigid_body.collision_collections')
+
+    def set_visible(self, visible):
+        if visible:
+            self.ob.hide_viewport = False
+            self.ob.hide_render = False
+        else:
+            self.ob.hide_viewport = True
+            self.ob.hide_render = True
+
+        self.ob.keyframe_insert('hide_viewport')
+        self.ob.keyframe_insert('hide_render')
+
+    def get_emitter_velocity(self, context, frame):
+        frame_rate = context.scene.render.fps
+
+        loc_b = self.emitter.matrix_world.to_translation()
+
+        change_frame(context, -1)
+        loc_a = self.emitter.matrix_world.to_translation()
+        change_frame(context, 1)
+
+        return (loc_b - loc_a) * frame_rate
+
 class PHYSICS_OT_projectile_launch(bpy.types.Operator):
     bl_idname = "rigidbody.projectile_launch"
     bl_label = "Launch!"
@@ -238,26 +240,27 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
         ob = context.object
         return ob and ob.projectile_props.is_emitter
 
-    def create_instances(self, number, ob, collection, empty):
+    def create_instance(self, ob, collection, empty):
         PADDING = 4
 
-        for i in range(number):
-            name = f"{ob.name}_instance_{str(i).zfill(PADDING)}"
-            copy = bpy.data.objects.new(name, ob.data)
+        name = f"{ob.name}_instance"
+        instance = bpy.data.objects.new(name, ob.data)
 
-            # Store a link to the emitter in each instance
-            copy.projectile_props["emitter"] = empty
+        # Store a link to the emitter in the instance
+        instance.projectile_props["emitter"] = empty
 
-            collection.objects.link(copy)
+        collection.objects.link(instance)
 
-            bpy.context.view_layer.objects.active = copy
-            bpy.ops.rigidbody.object_add()
+        bpy.context.view_layer.objects.active = instance
+        bpy.ops.rigidbody.object_add()
 
+        return Instance(instance, empty)
 
     def execute(self, context):
         empty = context.object
         properties = empty.projectile_props
-        settings = context.scene.projectile_settings
+        pool = []
+        instances = []
 
         ob = get_instance_object(empty)
         collection = get_instances_collection(empty)
@@ -272,20 +275,46 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
         step = frames / number
 
         utils.empty_collection(collection)
+
+        # Create list of frames for new instances
+        instance_frames = []
+        for i in range(number):
+            instance_frames.append(start + int(i * step))
+
         # Create instances
-        self.create_instances(number, ob, collection, empty)
+        for frame in range(start, end + 1):
 
-        i = start * 1.0
-        for o in collection.objects:
-            frame = int(i)
-            launch_instance(o, properties, settings, frame, empty)
-            i += step
+            # Check if a new instance is created on this frame
+            if frame in instance_frames:
+                # Get or create an instance to animate
+                context.scene.frame_set(frame)
+                if pool:
+                    instance = pool.pop()
+                else:
+                    instance = self.create_instance(ob, collection, empty)
 
-        # Reset to ending frame
+                # Set initial position, rotation, frame for instance
+                instances.append(instance)
+                instance.initialize(frame)
+
+                instance.activate()
+                instance.launch()
+
+            # Check if an instance is to be destroyed
+            if instances and instances[0].lifetime and instances[0].end_frame == frame:
+                context.scene.frame_set(frame)
+
+                instances[0].deactivate()
+
+                # Remove and add to the pool to be reused later
+                instance = instances.pop(0)
+                pool.append(instance)
+
+
+        # Reset to starting frame
         bpy.context.scene.frame_current = 0
 
         bpy.context.view_layer.objects.active = empty
-
         return {'FINISHED'}
 
 classes = (
