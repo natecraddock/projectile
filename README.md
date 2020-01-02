@@ -1,7 +1,7 @@
 # Projectile
 
-### [Download Projectile](https://github.com/natecraddock/projectile/archive/projectile-instancing.zip)
-Click the link and save the .zip. Install the entire .zip file as an addon.
+### [Download Projectile](https://github.com/natecraddock/projectile/releases/download/v1.0/projectile.py)
+Right-click and save link as a Python file. Then install `projectile.py` in Blender.
 
 ### Projectile features:
 - **Trajectory Tracing:** Projectile draws trajectories for each object so you can get an idea of how the object will interact with the scene.
