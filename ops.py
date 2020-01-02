@@ -74,20 +74,20 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
         return {'FINISHED'}
 
 
+def get_instance_object(ob):
+    if "instance_object" in ob.projectile_props:
+        return ob.projectile_props["instance_object"]
+    return None
+
+def get_instances_collection(ob):
+    if "instances_collection" in ob.projectile_props:
+        return ob.projectile_props["instances_collection"]
+    return None
+
 class PHYSICS_OT_projectile_remove(bpy.types.Operator):
     bl_idname = "rigidbody.projectile_remove_object"
     bl_label = "Remove Object"
     bl_description = "Remove object from as a projectile"
-
-    def get_instance_object(self, ob):
-        if "instance_object" in ob.projectile_props:
-            return ob.projectile_props["instance_object"]
-        return None
-
-    def get_instances_collection(self, ob):
-        if "instances_collection" in ob.projectile_props:
-            return ob.projectile_props["instances_collection"]
-        return None
 
     @classmethod
     def poll(cls, context):
@@ -97,8 +97,8 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
     def execute(self, context):
         empty = context.object
 
-        ob = self.get_instance_object(empty)
-        collection = self.get_instances_collection(empty)
+        ob = get_instance_object(empty)
+        collection = get_instances_collection(empty)
 
         utils.empty_collection(collection)
 
@@ -233,14 +233,6 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
     bl_label = "Launch!"
     bl_description = "Launch the selected object!"
 
-    def get_instance_object(self, empty):
-        return empty.projectile_props["instance_object"]
-
-    def get_instances_collection(self, ob):
-        if "instances_collection" in ob.projectile_props:
-            return ob.projectile_props["instances_collection"]
-        return None
-
     @classmethod
     def poll(cls, context):
         ob = context.object
@@ -267,8 +259,8 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
         properties = empty.projectile_props
         settings = context.scene.projectile_settings
 
-        ob = self.get_instance_object(empty)
-        collection = self.get_instances_collection(empty)
+        ob = get_instance_object(empty)
+        collection = get_instances_collection(empty)
 
         # Max instances is the number of frames in the range
         start = properties.start_frame
