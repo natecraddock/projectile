@@ -21,6 +21,13 @@ import bpy
 from . import utils
 from . import ui
 
+# Find first collection object is in
+def get_object_collection(ob):
+    for collection in bpy.data.collections:
+        if ob.name in collection.objects:
+            return collection
+    return None
+
 class PHYSICS_OT_projectile_add(bpy.types.Operator):
     bl_idname = "rigidbody.projectile_add_object"
     bl_label = "Add Object as Projectile"
@@ -39,6 +46,7 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
 
     def execute(self, context):
         ob = context.object
+        object_collection = get_object_collection(ob)
 
         # Set object as rigid body
         bpy.ops.rigidbody.object_add()
@@ -54,8 +62,8 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
         empty.projectile_props.is_emitter = True
         empty.location = ob.location
 
-        # Add empty to active collection
-        context.collection.objects.link(empty)
+        # Add empty to collection the object was in
+        object_collection.objects.link(empty)
 
         # Set instance object and collection
         self.set_instance_object(empty, ob)
@@ -69,7 +77,11 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
         empty.select_set(True)
         ob.select_set(False)
 
+        # Run the operator
         bpy.ops.rigidbody.projectile_launch()
+
+        # Ensure quality is set
+        utils.set_quality(context)
 
         return {'FINISHED'}
 
@@ -96,6 +108,7 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
 
     def execute(self, context):
         empty = context.object
+        emitter_collection = get_object_collection(empty)
 
         ob = get_instance_object(empty)
         collection = get_instances_collection(empty)
@@ -107,14 +120,11 @@ class PHYSICS_OT_projectile_remove(bpy.types.Operator):
         # Remove empty
         bpy.data.objects.remove(empty, do_unlink=True)
 
-        # Add object to active collection
-        context.collection.objects.link(ob)
+        # Add object to collection that empty was just removed from
+        emitter_collection.objects.link(ob)
 
         # Set object as active
         context.view_layer.objects.active = ob
-
-        # Remove rigid body from object
-        bpy.ops.rigidbody.object_remove()
 
         # Remove instances collection if empty
         projectile_collection = utils.get_projectile_collection()
