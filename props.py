@@ -111,7 +111,7 @@ class ProjectileObject(bpy.types.PropertyGroup):
 
     lifetime: bpy.props.IntProperty(
         name="Lifetime",
-        description="Lifetime of the rigidbody",
+        description="Lifetime of the rigidbody (lifetime of 0 to disable)",
         default=0,
         min=0,
         options={'HIDDEN'}
