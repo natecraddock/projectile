@@ -99,6 +99,9 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
             row = layout.row()
             row.operator('rigidbody.projectile_launch')
 
+            if ob.projectile_props.is_dirty:
+                box = layout.box()
+                box.label(text="Settings have changed", icon='ERROR')
 
 class PHYSICS_PT_projectile_settings(bpy.types.Panel):
     bl_label = "Projectile Settings"

@@ -325,6 +325,10 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
         bpy.context.scene.frame_current = 0
 
         bpy.context.view_layer.objects.active = empty
+
+        # Clear dirty
+        properties.is_dirty = False
+
         return {'FINISHED'}
 
 classes = (

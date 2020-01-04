@@ -56,6 +56,15 @@ def unsubscribe_to_rna_props():
     # Unsubscribe from all RNA msgbus props
     bpy.msgbus.clear_by_owner(bpy.types.Scene.props_msgbus_handler)
 
+# Called when a property is changed
+def props_dirty(self, context):
+    ob = context.object
+    if ob:
+        ob.projectile_props.is_dirty = True
+
+def call_multiple_functions(funcs, self, context):
+    for f in funcs:
+        f(self, context)
 
 class ProjectileObject(bpy.types.PropertyGroup):
     is_emitter: bpy.props.BoolProperty(
@@ -64,11 +73,18 @@ class ProjectileObject(bpy.types.PropertyGroup):
         default=False
     )
 
+    is_dirty: bpy.props.BoolProperty(
+        name="Is Dirty",
+        description="Are emitter props dirty (for internal use)",
+        default=False
+    )
+
     start_frame: bpy.props.IntProperty(
         name="Start Frame",
         description="Frame to start velocity initialization on",
         default=1,
         options={'HIDDEN'},
+        update=props_dirty
     )
 
     end_frame: bpy.props.IntProperty(
@@ -76,6 +92,7 @@ class ProjectileObject(bpy.types.PropertyGroup):
         description="Frame to end projectile instancing",
         default=50,
         options={'HIDDEN'},
+        update=props_dirty
     )
 
     instance_count: bpy.props.IntProperty(
@@ -83,6 +100,7 @@ class ProjectileObject(bpy.types.PropertyGroup):
         description="Instances of the projectile",
         default=1,
         options={'HIDDEN'},
+        update=props_dirty
     )
 
     v: bpy.props.FloatVectorProperty(
@@ -91,7 +109,7 @@ class ProjectileObject(bpy.types.PropertyGroup):
         subtype='VELOCITY',
         precision=4,
         options={'HIDDEN'},
-        update=utils.velocity_callback
+        update = lambda self, context : call_multiple_functions([utils.velocity_callback, props_dirty], self, context)
     )
 
     w: bpy.props.FloatVectorProperty(
@@ -100,6 +118,7 @@ class ProjectileObject(bpy.types.PropertyGroup):
         subtype='EULER',
         precision=4,
         options={'HIDDEN'},
+        update=props_dirty
     )
 
     start_hidden: bpy.props.BoolProperty(
@@ -107,6 +126,7 @@ class ProjectileObject(bpy.types.PropertyGroup):
         description="Hide the object before the start frame",
         default=False,
         options={'HIDDEN'},
+        update=props_dirty
     )
 
     lifetime: bpy.props.IntProperty(
@@ -114,7 +134,8 @@ class ProjectileObject(bpy.types.PropertyGroup):
         description="Lifetime of the rigidbody (lifetime of 0 to disable)",
         default=0,
         min=0,
-        options={'HIDDEN'}
+        options={'HIDDEN'},
+        update=props_dirty
     )
 
     radius: bpy.props.FloatProperty(
@@ -123,7 +144,7 @@ class ProjectileObject(bpy.types.PropertyGroup):
         default=0.0,
         unit='VELOCITY',
         options={'HIDDEN'},
-        update=utils.spherical_callback
+        update=lambda self, context : call_multiple_functions([utils.spherical_callback, props_dirty], self, context)
     )
 
     incline: bpy.props.FloatProperty(
@@ -132,7 +153,7 @@ class ProjectileObject(bpy.types.PropertyGroup):
         default=0.0,
         unit='ROTATION',
         options={'HIDDEN'},
-        update=utils.spherical_callback
+        update=lambda self, context : call_multiple_functions([utils.spherical_callback, props_dirty], self, context)
     )
 
     azimuth: bpy.props.FloatProperty(
@@ -141,7 +162,7 @@ class ProjectileObject(bpy.types.PropertyGroup):
         default=0.0,
         unit='ROTATION',
         options={'HIDDEN'},
-        update=utils.spherical_callback
+        update=lambda self, context : call_multiple_functions([utils.spherical_callback, props_dirty], self, context)
     )
 
 
