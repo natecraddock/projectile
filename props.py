@@ -165,10 +165,11 @@ class ProjectileSettings(bpy.types.PropertyGroup):
 
     quality: bpy.props.EnumProperty(
         name="Quality",
-        items=[("low", "Low", "Use low quality solver settings"),
+        items=[("very_low", "Very Low", "Very low quality can help with instancing that behaves like particles"),
+               ("low", "Low", "Use low quality solver settings"),
                ("medium", "Medium", "Use medium quality solver settings"),
                ("high", "High", "Use high quality solver settings")],
-        default='medium',
+        default='very_low',
         options={'HIDDEN'},
         update=set_quality_callback)
 

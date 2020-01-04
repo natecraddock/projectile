@@ -279,9 +279,12 @@ def spherical_callback(self, context):
         ob.projectile_props.v = spherical_to_cartesian(radius, incline, azimuth)
 
 def set_quality(context):
-    frame_rate = bpy.context.scene.render.fps
+    frame_rate = context.scene.render.fps
     quality = context.scene.projectile_settings.quality
-    if quality == 'low':
+
+    if quality == 'very_low':
+        context.scene.rigidbody_world.steps_per_second = frame_rate * 1
+    elif quality == 'low':
         context.scene.rigidbody_world.steps_per_second = frame_rate * 4
     elif quality == 'medium':
         context.scene.rigidbody_world.steps_per_second = frame_rate * 10
