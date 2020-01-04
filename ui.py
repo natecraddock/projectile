@@ -65,22 +65,12 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
         ob = context.object
         if ob and ob.projectile_props.is_emitter:
             row = layout.row()
-            if(len([object for object in context.selected_objects if object.projectile_props.is_emitter])) > 1:
-                row.operator('rigidbody.projectile_remove_object', text="Remove Objects")
-            else:
-                row.operator('rigidbody.projectile_remove_object')
-
-        else:
+            row.operator('rigidbody.projectile_remove_object', icon='REMOVE')
+        elif ob and ob.type in {'MESH'}:
             row = layout.row()
-            if len(context.selected_objects) > 1:
-                row.operator('rigidbody.projectile_add_object', text="Add Objects")
-            else:
-                row.operator('rigidbody.projectile_add_object')
+            row.operator('rigidbody.projectile_add_object', icon='ADD')
 
         if ob and ob.projectile_props.is_emitter:
-            row = layout.row()
-            row.operator('rigidbody.projectile_launch')
-
             col = layout.column(align=True)
             col.prop(ob.projectile_props, 'start_frame')
             col.prop(ob.projectile_props, 'end_frame')
@@ -105,6 +95,9 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
 
             row = layout.row()
             row.prop(ob.projectile_props, 'w')
+
+            row = layout.row()
+            row.operator('rigidbody.projectile_launch')
 
 
 class PHYSICS_PT_projectile_settings(bpy.types.Panel):
