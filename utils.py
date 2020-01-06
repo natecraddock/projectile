@@ -41,6 +41,11 @@ def ui_prop_change_handler(*args):
             if area.type == 'VIEW_3D':
                 area.tag_redraw()
 
+    # For each emitter, set settings dirty
+    for ob in bpy.context.view_layer.objects:
+        if ob.projectile_props.is_emitter:
+            ob.projectile_props.is_dirty = True
+
     # run operator for each projectile object
     # active = bpy.context.view_layer.objects.active
 
