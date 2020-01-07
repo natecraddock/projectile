@@ -86,7 +86,7 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
 
             if settings.spherical:
                 col = layout.column(align=True)
-                col.prop(ob.projectile_props, 'radius')
+                col.prop(ob.projectile_props, 'radius', text="Velocity Radius")
                 col.prop(ob.projectile_props, 'incline')
                 col.prop(ob.projectile_props, 'azimuth')
             else:
