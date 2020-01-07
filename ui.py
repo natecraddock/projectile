@@ -65,10 +65,10 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
         ob = context.object
         if ob and ob.projectile_props.is_emitter:
             row = layout.row()
-            row.operator('rigidbody.projectile_remove_object', icon='REMOVE')
+            row.operator('rigidbody.projectile_remove_emitter', icon='REMOVE')
         elif ob and ob.type in {'MESH'}:
             row = layout.row()
-            row.operator('rigidbody.projectile_add_object', icon='ADD')
+            row.operator('rigidbody.projectile_add_emitter', icon='ADD')
 
         if ob and ob.projectile_props.is_emitter:
             col = layout.column(align=True)

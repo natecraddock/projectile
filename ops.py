@@ -29,9 +29,9 @@ def get_object_collection(ob):
     return None
 
 class PHYSICS_OT_projectile_add(bpy.types.Operator):
-    bl_idname = "rigidbody.projectile_add_object"
-    bl_label = "Add Object as Projectile"
-    bl_description = "Set selected object as a projectile"
+    bl_idname = "rigidbody.projectile_add_emitter"
+    bl_label = "New Emitter"
+    bl_description = "Create a new emitter with the active object as the instances"
 
     @classmethod
     def poll(cls, context):
@@ -97,9 +97,9 @@ def get_instances_collection(ob):
     return None
 
 class PHYSICS_OT_projectile_remove(bpy.types.Operator):
-    bl_idname = "rigidbody.projectile_remove_object"
-    bl_label = "Remove Object"
-    bl_description = "Remove object from as a projectile"
+    bl_idname = "rigidbody.projectile_remove_emitter"
+    bl_label = "Remove Emitter"
+    bl_description = "Remove emitter and all instances"
 
     @classmethod
     def poll(cls, context):
