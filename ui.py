@@ -51,6 +51,14 @@ class PHYSICS_OT_projectle_draw(bpy.types.Operator):
         return {'FINISHED'}
 
 
+def execute_all_poll(context):
+    objects = context.scene.objects
+    for ob in objects:
+        if ob.projectile_props.is_emitter and ob.projectile_props.is_dirty:
+            return True
+    return False
+
+
 class PHYSICS_PT_projectile(bpy.types.Panel):
     bl_label = "Projectile"
     bl_category = "Physics"
@@ -69,6 +77,9 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
         elif ob and ob.type in {'MESH'}:
             row = layout.row()
             row.operator('rigidbody.projectile_add_emitter', icon='ADD')
+        else:
+            row = layout.row()
+            row.label(text="Select a mesh to create an emitter", icon="QUESTION")
 
         if ob and ob.projectile_props.is_emitter:
             col = layout.column(align=True)
@@ -99,9 +110,18 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
             row = layout.row()
             row.operator('rigidbody.projectile_execute')
 
+            if execute_all_poll(context):
+                row = layout.row()
+                row.operator('rigidbody.projectile_execute_all')
+
             if ob.projectile_props.is_dirty:
                 box = layout.box()
                 box.label(text="Settings have changed", icon='ERROR')
+
+        elif execute_all_poll(context):
+            row = layout.row()
+            row.operator('rigidbody.projectile_execute_all')
+
 
 class PHYSICS_PT_projectile_settings(bpy.types.Panel):
     bl_label = "Projectile Settings"

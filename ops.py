@@ -331,10 +331,30 @@ class PHYSICS_OT_projectile_execute(bpy.types.Operator):
 
         return {'FINISHED'}
 
+
+class PHYSICS_OT_projectile_execute_all(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_execute_all"
+    bl_label = "Execute All"
+    bl_description = "Apply settings for all emitters that need updating"
+
+    def execute(self, context):
+        objects = context.scene.objects
+        active = context.view_layer.objects.active
+
+        for ob in objects:
+            if ob.projectile_props.is_emitter and ob.projectile_props.is_dirty:
+                context.view_layer.objects.active = ob
+                bpy.ops.rigidbody.projectile_execute()
+
+        context.view_layer.objects.active = active
+
+        return {'FINISHED'}
+
 classes = (
     PHYSICS_OT_projectile_add,
     PHYSICS_OT_projectile_remove,
     PHYSICS_OT_projectile_execute,
+    PHYSICS_OT_projectile_execute_all,
 )
 
 def register():
