@@ -11,12 +11,12 @@ Click the link and save the .zip. Install the entire .zip file as an addon.
 
 ## Usage
 Projectile is located in the Physics tab of the sidebar
-- Click **Add Object as Emitter** to set an object as a Projectile object. The launch operator will be applied and an empty (emitter) will be created at the same location as the object.
+- Click **Add Object as Emitter** to set an object as a Projectile object. The execute operator will be applied and an empty (emitter) will be created at the same location as the object.
 - Click **Remove Object** with an active emitter to remove all instances.
 - Set the **Velocity** component for each axis.
 - **Number** is to set the number of instances. (Default is 1)
 - **Lifetime** is to set the lifetime of the instances. 0 means the instances will not be destroyed.
-- Then click **Launch!**, then you can play the animation and see the results.
+- Then click **Execute**, then you can play the animation and see the results.
 
 ### Projectile Settings
 - Choose a **Solver Quality** to increase the physics solver quality.

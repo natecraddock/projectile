@@ -97,7 +97,7 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
             row.prop(ob.projectile_props, 'w')
 
             row = layout.row()
-            row.operator('rigidbody.projectile_launch')
+            row.operator('rigidbody.projectile_execute')
 
             if ob.projectile_props.is_dirty:
                 box = layout.box()

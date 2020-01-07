@@ -53,7 +53,7 @@ def ui_prop_change_handler(*args):
     #     if object.projectile_props.is_emitter:
     #         bpy.context.view_layer.objects.active = object
     #         if bpy.context.scene.projectile_settings.auto_update:
-    #             bpy.ops.rigidbody.projectile_launch()
+    #             bpy.ops.rigidbody.projectile_execute()
 
     # bpy.context.view_layer.objects.active = active
 

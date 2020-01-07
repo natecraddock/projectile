@@ -83,6 +83,7 @@ class ProjectileObject(bpy.types.PropertyGroup):
         name="Start Frame",
         description="Frame to start velocity initialization on",
         default=1,
+        min=1,
         options={'HIDDEN'},
         update=props_dirty
     )
@@ -91,6 +92,7 @@ class ProjectileObject(bpy.types.PropertyGroup):
         name="End Frame",
         description="Frame to end projectile instancing",
         default=50,
+        min=1,
         options={'HIDDEN'},
         update=props_dirty
     )

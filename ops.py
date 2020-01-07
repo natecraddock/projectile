@@ -78,7 +78,7 @@ class PHYSICS_OT_projectile_add(bpy.types.Operator):
         ob.select_set(False)
 
         # Run the operator
-        bpy.ops.rigidbody.projectile_launch()
+        bpy.ops.rigidbody.projectile_execute()
 
         # Ensure quality is set
         utils.set_quality(context)
@@ -170,7 +170,7 @@ class Instance:
             self.set_visible(False)
             change_frame(bpy.context, 1)
 
-    def launch(self):
+    def execute(self):
         displacement = utils.kinematic_displacement(self.emitter.matrix_world.to_translation(), self.velocity, 2)
         displacement_rotation = utils.kinematic_rotation(self.emitter.matrix_world.to_euler(), self.w, 2)
 
@@ -240,10 +240,10 @@ class Instance:
 
         return (loc_b - loc_a) * frame_rate
 
-class PHYSICS_OT_projectile_launch(bpy.types.Operator):
-    bl_idname = "rigidbody.projectile_launch"
-    bl_label = "Launch!"
-    bl_description = "Launch the selected object!"
+class PHYSICS_OT_projectile_execute(bpy.types.Operator):
+    bl_idname = "rigidbody.projectile_execute"
+    bl_label = "Execute "
+    bl_description = "Create instances based on current emitter settings"
 
     @classmethod
     def poll(cls, context):
@@ -308,7 +308,7 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
                 instance.initialize(frame)
 
                 instance.activate()
-                instance.launch()
+                instance.execute()
 
             # Check if an instance is to be destroyed
             if instances and instances[0].lifetime and instances[0].end_frame == frame:
@@ -334,7 +334,7 @@ class PHYSICS_OT_projectile_launch(bpy.types.Operator):
 classes = (
     PHYSICS_OT_projectile_add,
     PHYSICS_OT_projectile_remove,
-    PHYSICS_OT_projectile_launch,
+    PHYSICS_OT_projectile_execute,
 )
 
 def register():
