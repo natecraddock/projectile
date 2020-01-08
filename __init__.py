@@ -19,11 +19,11 @@
 bl_info = {
     "name": "Projectile",
     "author": "Nathan Craddock",
-    "version": (1, 0),
+    "version": (2, 0),
     "blender": (2, 81, 0),
     "location": "3D View Sidebar > Physics tab",
-    "description": "Set initial velocities for rigid body physics",
-    "tracker_url": "",
+    "description": "Rigid body instancer",
+    "tracker_url": "https://github.com/natecraddock/projectile/",
     "category": "Physics"
 }
 
