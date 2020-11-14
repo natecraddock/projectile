@@ -87,9 +87,9 @@ def distance_between_points(origin, destination):
 # Raycast from origin to destination (Defaults to (nearly) infinite distance)
 def raycast(context, origin, destination, distance=1.70141e+38):
     direction = (destination - origin).normalized()
-    view_layer = context.view_layer
+    depsgraph = context.view_layer.depsgraph
 
-    cast = context.scene.ray_cast(view_layer, origin, direction, distance=distance)
+    cast = context.scene.ray_cast(depsgraph, origin, direction, distance=distance)
     return cast
 
 # Kinematic Equation to find displacement over time
@@ -288,12 +288,12 @@ def set_quality(context):
     quality = context.scene.projectile_settings.quality
 
     if quality == 'very_low':
-        context.scene.rigidbody_world.steps_per_second = frame_rate * 1
+        context.scene.rigidbody_world.substeps_per_frame = frame_rate * 1
     elif quality == 'low':
-        context.scene.rigidbody_world.steps_per_second = frame_rate * 4
+        context.scene.rigidbody_world.substeps_per_frame = frame_rate * 4
     elif quality == 'medium':
-        context.scene.rigidbody_world.steps_per_second = frame_rate * 10
+        context.scene.rigidbody_world.substeps_per_frame = frame_rate * 10
     elif quality == 'high':
-        context.scene.rigidbody_world.steps_per_second = frame_rate * 20
+        context.scene.rigidbody_world.substeps_per_frame = frame_rate * 20
 
     context.scene.rigidbody_world.solver_iterations = 20
