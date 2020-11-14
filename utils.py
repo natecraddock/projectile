@@ -94,26 +94,6 @@ def raycast(context, origin, destination, distance=1.70141e+38):
 
 # Kinematic Equation to find displacement over time
 # Used for drawing expected line
-def kinematic_displacement_expected(initial, velocity, time):
-    frame_rate = bpy.context.scene.render.fps
-
-    if not bpy.context.scene.use_gravity:
-        gravity = mathutils.Vector((0.0, 0.0, 0.0))
-    else:
-        gravity = bpy.context.scene.gravity
-
-
-    dt = (time * 1.0) / frame_rate
-    ds = mathutils.Vector((0.0, 0.0, 0.0))
-
-    ds.x = initial.x + (velocity.x * dt) + (0.5 * gravity.x * math.pow(dt, 2))
-    ds.y = initial.y + (velocity.y * dt) + (0.5 * gravity.y * math.pow(dt, 2))
-    ds.z = initial.z + (velocity.z * dt) + (0.5 * gravity.z * math.pow(dt, 2))
-
-    return ds
-
-# Kinematic Equation with error correction
-# Used for calulating keyframes on objects
 def kinematic_displacement(initial, velocity, time):
     frame_rate = bpy.context.scene.render.fps
 
@@ -121,6 +101,7 @@ def kinematic_displacement(initial, velocity, time):
         gravity = mathutils.Vector((0.0, 0.0, 0.0))
     else:
         gravity = bpy.context.scene.gravity
+
 
     dt = (time * 1.0) / frame_rate
     ds = mathutils.Vector((0.0, 0.0, 0.0))
@@ -187,12 +168,12 @@ def calculate_trajectory(context, emitter):
     # Generate coordinates
     cast = []
     coordinates = []
-    v = kinematic_displacement_expected(s, emitter.projectile_props.v, 0)
+    v = kinematic_displacement(s, emitter.projectile_props.v, 0)
     coord = mathutils.Vector((v.x, v.y, v.z))
     coordinates.append(coord)
 
     for frame in range(1, context.scene.frame_end):
-        v = kinematic_displacement_expected(s, emitter.projectile_props.v, frame)
+        v = kinematic_displacement(s, emitter.projectile_props.v, frame)
         coord = mathutils.Vector((v.x, v.y, v.z))
 
         # Get distance between previous and current position
@@ -210,7 +191,7 @@ def calculate_trajectory(context, emitter):
         coordinates.append(coord)
 
     if not cast[0]:
-        v = kinematic_displacement_expected(s, emitter.projectile_props.v, context.scene.frame_end)
+        v = kinematic_displacement(s, emitter.projectile_props.v, context.scene.frame_end)
         coord = mathutils.Vector((v.x, v.y, v.z))
         coordinates.append(coord)
 
