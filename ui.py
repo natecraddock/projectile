@@ -123,6 +123,28 @@ class PHYSICS_PT_projectile(bpy.types.Panel):
             row.operator('rigidbody.projectile_execute_all')
 
 
+class PHYSICS_PT_projectile_rb_settings(bpy.types.Panel):
+    bl_label = "Rigid Body Settings"
+    bl_parent_id = "PHYSICS_PT_projectile"
+    bl_category = "Physics"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        ob = context.object
+        if ob and ob.projectile_props.is_emitter:
+            row = layout.row()
+            row.prop(ob.projectile_props, 'friction')
+
+            row = layout.row()
+            row.prop(ob.projectile_props, 'bounciness')
+
+            row = layout.row()
+            row.prop(ob.projectile_props, 'collision_shape')
+
 class PHYSICS_PT_projectile_settings(bpy.types.Panel):
     bl_label = "Projectile Settings"
     bl_parent_id = "PHYSICS_PT_projectile"
@@ -148,6 +170,7 @@ class PHYSICS_PT_projectile_settings(bpy.types.Panel):
 
 classes = (
     PHYSICS_PT_projectile,
+    PHYSICS_PT_projectile_rb_settings,
     PHYSICS_PT_projectile_settings,
 )
 

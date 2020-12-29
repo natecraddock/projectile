@@ -19,7 +19,19 @@
 import bpy
 
 from . import utils
-from . import ui
+
+
+def enum_prop_to_py(enum_prop):
+    items = []
+    for item in enum_prop:
+        items.append((
+            item.identifier,
+            item.name,
+            item.description,
+            item.icon,
+            item.value
+        ))
+    return items
 
 
 def subscribe_to_rna_props():
@@ -165,6 +177,39 @@ class ProjectileObject(bpy.types.PropertyGroup):
         unit='ROTATION',
         options={'HIDDEN'},
         update=lambda self, context : call_multiple_functions([utils.spherical_callback, props_dirty], self, context)
+    )
+
+    # Instance Physics Settings
+    friction: bpy.props.FloatProperty(
+        name="Friction",
+        description="Resistance of object to movement",
+        default=0.5,
+        soft_min=0.0,
+        soft_max=1.0,
+        step=1,
+        precision=3,
+        subtype='FACTOR',
+        update=props_dirty,
+    )
+
+    bounciness: bpy.props.FloatProperty(
+        name="Bounciness",
+        description="Tendency of object to bounce after colliding with another",
+        default=0.0,
+        soft_min=0.0,
+        soft_max=1.0,
+        step=1,
+        precision=3,
+        subtype='FACTOR',
+        update=props_dirty,
+    )
+
+    collision_shape: bpy.props.EnumProperty(
+        name="Collision Shape",
+        description="Collision Shape of object in Rigid Body Simulations",
+        items=enum_prop_to_py(bpy.types.RigidBodyObject.bl_rna.properties['collision_shape'].enum_items),
+        default='CONVEX_HULL',
+        update=props_dirty,
     )
 
 
