@@ -264,6 +264,11 @@ class PHYSICS_OT_projectile_execute(bpy.types.Operator):
         bpy.context.view_layer.objects.active = instance
         bpy.ops.rigidbody.object_add()
 
+        projectile_props = empty.projectile_props
+        instance.rigid_body.friction = projectile_props.friction
+        instance.rigid_body.restitution = projectile_props.bounciness
+        instance.rigid_body.collision_shape = projectile_props.collision_shape
+
         return Instance(instance, empty)
 
     def execute(self, context):
