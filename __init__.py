@@ -19,8 +19,8 @@
 bl_info = {
     "name": "Projectile",
     "author": "Nathan Craddock",
-    "version": (2, 0),
-    "blender": (2, 81, 0),
+    "version": (2, 1),
+    "blender": (2, 91, 0),
     "location": "3D View Sidebar > Physics tab",
     "description": "Rigid body instancer",
     "tracker_url": "https://github.com/natecraddock/projectile/",
