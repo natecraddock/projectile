@@ -3,6 +3,8 @@
 ### [Download Projectile](https://github.com/natecraddock/projectile/releases/download/v2.1/projectile.zip)
 *Install the .zip file as an addon*
 
+Note that Projectile is compatible with Blender v3.0+
+
 You can also support me by purchasing the addon on Gumroad (pay-what-you-want): https://gumroad.com/l/projectile
 
 Watch the overview video: https://youtu.be/SXRYoay-rNo
