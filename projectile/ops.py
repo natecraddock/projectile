@@ -26,6 +26,9 @@ def get_object_collection(ob):
     for collection in bpy.data.collections:
         if ob.name in collection.objects:
             return collection
+    # Try the scene collection
+    if ob.name in bpy.context.scene.collection:
+        return bpy.context.scene.collection
     return None
 
 class PHYSICS_OT_projectile_add(bpy.types.Operator):
