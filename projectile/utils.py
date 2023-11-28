@@ -197,6 +197,8 @@ def calculate_trajectory(context, emitter):
 
     return coordinates
 
+SHADER = 'UNIFORM_COLOR' if bpy.app.version[0] >= 4 else '3D_UNIFORM_COLOR'
+
 # Draws trajectories from all emitters
 def draw_trajectory():
     context = bpy.context
@@ -215,7 +217,7 @@ def draw_trajectory():
         coordinates += calculate_trajectory(context, emitter)
 
     # Draw all trajectories
-    shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+    shader = gpu.shader.from_builtin(SHADER)
     batch = batch_for_shader(shader, 'LINES', {"pos": coordinates})
 
     shader.bind()
